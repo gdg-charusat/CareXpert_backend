@@ -5,7 +5,7 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 ---
 
 
-## 🚨 Contribution Rules (Strict Enforcement)
+## Contribution Rules (Strict Enforcement)
 
 > **Read this section carefully before doing anything. Violations will result in your PR being closed without review.**
 
@@ -21,7 +21,7 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 
 ---
 
-## 📌 Issue Policy
+## Issue Policy
 
 - Contributors may create new issues for:
   - Bugs
@@ -37,7 +37,7 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 
 ---
 
-## 🚀 Reporting Bugs or Proposing Improvements
+## Reporting Bugs or Proposing Improvements
 
 If you identify:
 
@@ -51,7 +51,7 @@ You must **create a new issue and wait for it to be approved**.
 
 ---
 
-### 📌 Important Guidelines
+### Important Guidelines
 
 - ✅ Open a new issue describing the problem clearly and wait for maintainer acknowledgment before submitting a Pull Request.
 - ✅ Submit a Pull Request with a clear and structured description.  
@@ -70,35 +70,23 @@ Please ensure that your contribution is meaningful, well-tested, and professiona
 
 ---
 
-## 🔐 Environment Variables & Secrets
+## Environment Variables & Secrets
 
 Some issues may require environment variables (API keys, secrets, credentials, etc.).
 
-🚨 **Do NOT ask for environment variables in issues or pull requests.**  
-🚨 **Do NOT commit secrets to the repository.**
+**Do NOT ask for environment variables in issues or pull requests.**  
+**Do NOT commit secrets to the repository.**
 
 If you need environment variables to work on an assigned issue, please contact the organizers privately:
 
-- 📱 **WhatsApp:** +91-8347036131 || +91-9227448882
-- 📧 **Email:** jadejakrishnapal04@gmail.com || aaleya2604@gmail.com
+- **WhatsApp:** +91-8347036131 || +91-9227448882
+- **Email:** jadejakrishnapal04@gmail.com || aaleya2604@gmail.com
 
 Environment details will be shared **only after the issue is officially assigned to you**.
 
 ---
 
-## 📋 Table of Contents
-
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Issue Guidelines](#issue-guidelines)
-- [Pull Request Process](#pull-request-process)
-- [Need Help?](#need-help)
-
----
-
-## 🛠 Tech Stack
+## Tech Stack
 
 This project uses:
 - **Runtime**: Node.js
@@ -109,7 +97,7 @@ This project uses:
 
 ---
 
-## ✅ Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
@@ -122,7 +110,7 @@ Before you begin, ensure you have the following installed:
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Step 1: Fork the Repository
 
@@ -173,7 +161,7 @@ JWT_EXPIRES_IN=7d
 NODE_ENV=development
 ```
 
-> ⚠️ **Never commit your `.env` file.** It is already listed in `.gitignore`.
+> **Never commit your `.env` file.** It is already listed in `.gitignore`.
 
 ### Step 5: Install Dependencies
 
@@ -228,7 +216,7 @@ git checkout -b feature/your-feature-name
 
 ---
 
-## 💻 Development Workflow
+## Development Workflow
 
 ### 1. Pick an Issue
 
@@ -307,11 +295,9 @@ git push origin feature/your-feature-name
    - **API Changes**: Document any new or modified endpoints (method, route, request body, response)
 4. Click **"Create pull request"**
 
-> 💡 **For General Improvement PRs** (bugs or enhancements not linked to any issue): You must still include your **Team Number** and a clear explanation of what you changed and why. These PRs are reviewed strictly.
-
 ---
 
-## 📝 Issue Guidelines
+## Issue Guidelines
 
 ### Finding Issues
 
@@ -331,95 +317,27 @@ Issues are categorized by difficulty level and **created exclusively by organize
 - Business logic implementation
 - Labels: `intermediate`, `level-2`
 
-### How to Request an Issue
-
-1. Find an unassigned issue you want to work on
-2. **Comment on the issue** with this format:
-   > *"I'd like to work on this. — Team [your team number]"*
-3. **Wait for a maintainer to assign it to you** — this is mandatory
-4. Once assigned, start working and submit your PR within **3–5 days**
-5. If you can't complete it in time, comment to let maintainers know
-
-> ⚠️ **Do NOT open new issues.** If you spot a bug or have a feature idea, raise it with a maintainer directly in the event channel.
-
----
-
-## 🔄 Pull Request Process
-
-### PR Requirements — Non-Negotiable
-
-> PRs that don't meet ALL of the following will be **closed without review**:
-
-- [ ] **Team number stated** in the PR description (e.g., `Team 07`)
-- [ ] **Linked to your assigned issue** via `Closes #issue-number` (unless it's a general improvement PR)
-- [ ] **You are the assigned contributor** for that issue
-- [ ] PR is raised **after** assignment, not before
-- [ ] **No `.env` file or secrets committed**
-
-### Before Submitting
-
-- [ ] Server runs without errors (`npm run dev`)
-- [ ] All endpoints tested manually (success + error cases)
-- [ ] Input validation in place for all new routes
-- [ ] Proper HTTP status codes used (200, 201, 400, 401, 404, 500)
-- [ ] Error responses follow consistent format
-- [ ] No hardcoded secrets or credentials
-- [ ] No `console.log` statements left in production code
-- [ ] Commit messages follow the conventional format
-
-### PR Review Process
-
-1. A maintainer will review your PR within 24–48 hours
-2. You may be asked to make changes — respond promptly
-3. Make requested changes and push to the same branch (PR auto-updates)
-4. **Only maintainers can approve and merge** — do not request peers to merge
-
-### Addressing Review Comments
-
-```bash
-# Make the requested changes, then:
-git add .
-git commit -m "fix: address review comments"
-git push origin feature/your-feature-name
-```
-
-### General Improvement PRs (No Issue Linked)
-
-If you want to fix a bug or add a small improvement that isn't part of an existing issue, you may raise a PR directly **only if**:
-- It is a genuine improvement (not a trivial change)
-- Your **Team Number** is clearly stated in the PR description
-- You provide a clear explanation of what you changed and why
-- You understand it will be **reviewed strictly** and may be closed if not up to standard
-
----
-
-## 🆘 Need Help?
+## Need Help?
 
 - **Issue Discussion**: Comment on the issue you're working on
 - **WhatsApp**: Join the GDG CHARUSAT event group
 - **Maintainers**: Tag @maintainer-username in your issue comments
-- **Documentation**: [Node.js Docs](https://nodejs.org/en/docs/), [Express.js Docs](https://expressjs.com/), [PostgreSQL Docs](https://www.postgresql.org/docs/)
+- **Documentation**: Check [React Docs](https://react.dev/), [Vite Docs](https://vitejs.dev/), [Tailwind Docs](https://tailwindcss.com/), [pnpm Docs](https://pnpm.io/)
 
 ---
 
-## 🎯 Tips for Success
+## Tips for Success
 
-1. **Read the codebase first** — understand the existing patterns before writing anything
-2. **Follow the folder structure** — put files in the right place
-3. **Test every case** — success, failure, and edge cases
-4. **Never commit secrets** — double-check before every push with `git diff --staged`
-5. **Ask questions early** — don't waste hours going in the wrong direction
-6. **Be responsive** — reply to review comments promptly
-
----
-
-## 📜 Code of Conduct
-
-Please be respectful and professional in all interactions. We're here to learn and help each other grow.
+1. **Start Small**: Begin with beginner issues to understand the codebase
+2. **Read Existing Code**: Look at how similar features are implemented
+3. **Always use pnpm**: Never switch to npm or yarn mid-project
+4. **Ask Questions**: It's better to ask than to waste time going in the wrong direction
+5. **Be Patient**: Code review takes time, be responsive to feedback
+6. **Have Fun**: Open source is about learning and community!
 
 ---
 
-**Happy Coding! 🚀**
+**Happy Coding! **
 
 If you have any questions or need clarification, feel free to reach out to the maintainers or ask in the issue comments.
 
