@@ -136,7 +136,7 @@ const signup = async (req: Request, res: any) => {
         }
       } else {
         await prisma.patient.create({
-          data: { 
+          data: {
             userId: user.id,
             location: location || null,
           },
@@ -263,10 +263,10 @@ const login = async (req: any, res: any) => {
   const { data, password } = req.body;
   try {
     if (!data) {
-      return res.json(new ApiError(400, "username or email is required"));
+      return res.status(400).json(new ApiError(400, "username or email is required"));
     }
     if ([password, data].some((field) => field.trim() === "")) {
-      return res.json(new ApiError(400, "All field required"));
+      return res.status(400).json(new ApiError(400, "All field required"));
     }
 
     const user = await prisma.user.findFirst({
@@ -334,7 +334,7 @@ const logout = async (req: any, res: any) => {
     return res
       .status(200)
       .clearCookie("accessToken", options)
-      .clearCookie("refresToken", options)
+      .clearCookie("refreshToken", options)
       .json(new ApiResponse(200, "Logout successfully"));
   } catch (err) {
     return res.status(500).json(new ApiError(500, "internal server error"));
@@ -347,6 +347,7 @@ const doctorProfile = async (req: Request, res: Response) => {
 
     if (!id || !isValidUUID(id)) {
       res.status(400).json(new ApiError(400, "Doctor id not found"));
+      return;
     }
 
     const doctor = await prisma.doctor.findUnique({
@@ -357,7 +358,6 @@ const doctorProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
             createdAt: true,
           },
         },
@@ -377,6 +377,7 @@ const userProfile = async (req: Request, res: Response) => {
 
     if (!id || !isValidUUID(id)) {
       res.status(400).json(new ApiError(400, "patient id no valid"));
+      return;
     }
 
     const patient = await prisma.patient.findUnique({
@@ -387,7 +388,6 @@ const userProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
             createdAt: true,
           },
         },
@@ -427,7 +427,7 @@ const updatePatientProfile = async (req: any, res: Response) => {
 
     res
       .status(200)
-      .json(new ApiResponse(200, user, "Profile updated successfulyy"));
+      .json(new ApiResponse(200, user, "Profile updated successfully"));
     return;
   } catch (error) {
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -477,7 +477,7 @@ const updateDoctorProfile = async (req: any, res: Response) => {
 
     res
       .status(200)
-      .json(new ApiResponse(200, user, "profile updated successfulyy"));
+      .json(new ApiResponse(200, user, "profile updated successfully"));
     return;
   } catch (error) {
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -597,7 +597,7 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     const unreadCount = await prisma.notification.count({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
@@ -618,7 +618,7 @@ const markNotificationAsRead = async (req: any, res: Response) => {
     const { notificationId } = req.params;
 
     const notification = await prisma.notification.updateMany({
-      where: { 
+      where: {
         id: notificationId,
         userId,
       },
@@ -644,7 +644,7 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     await prisma.notification.updateMany({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },

@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { UserInRequest } from "../utils/helper";
 import axios from "axios";
 import { ApiResponse } from "../utils/ApiResponse";
-
-const prisma = new PrismaClient();
 
 // Controller to get messages for a room (city chat)
 export const getRoomMessages = async (req: Request, res: Response) => {
@@ -156,11 +154,7 @@ export const getDmMessages = async (req: Request, res: Response) => {
       },
     });
 
-    if (dmMessages.length === 0) {
-      return res
-        .status(403)
-        .json(new ApiError(403, "You are not part of this conversation"));
-    }
+
 
     const skip = (Number(page) - 1) * Number(limit);
     const totalMessages = dmMessages.length;
@@ -644,7 +638,7 @@ export const getToken = async (req: Request, res: Response) => {
     res.status(200).json(
       new ApiResponse(200, {
         roomId: response.data.roomId,
-        token: process.env.VIDEOSDK_API_KEY,
+        token: response.data.token,
       })
     );
     return;

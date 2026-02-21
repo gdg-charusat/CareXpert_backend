@@ -1,8 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 interface JoinRoomData {
   userId: string;

@@ -1,9 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
-
-const prisma = new PrismaClient();
 interface DmMessageData {
   roomId: string;
   senderId: string;

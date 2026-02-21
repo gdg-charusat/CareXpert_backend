@@ -1,15 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { ApiError } from "../utils/ApiError";
 import { analyzeReport } from "../utils/analyzeReport";
 import { extractTextFromFile, validateFile } from "../utils/textExtractor";
 import * as fs from "fs/promises";
 import * as path from "path";
-
-// Extend Express Request type to include user
-// Using the global Request type from helper.ts
-
-const prisma = new PrismaClient();
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -167,7 +162,7 @@ async function processReportInBackground(
       try {
         await fs.access(filePath);
         await fs.unlink(filePath);
-      } catch {}
+      } catch { }
     }
   }
 }
