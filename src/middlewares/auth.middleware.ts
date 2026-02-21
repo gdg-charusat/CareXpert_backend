@@ -25,6 +25,7 @@ export const isAuthenticated = async (req: any, res: any, next: any) => {
           name: true,
           email: true,
           role: true,
+          tokenVersion: true,
           patient: {
             select: {
               id: true,
@@ -40,6 +41,16 @@ export const isAuthenticated = async (req: any, res: any, next: any) => {
 
       if (!user) {
         return res.status(404).json(new ApiError(404, "User not found"));
+      }
+
+      // Verify token version matches — rejects tokens issued before rotation
+      if (
+        decodedToken.tokenVersion !== undefined &&
+        decodedToken.tokenVersion !== user.tokenVersion
+      ) {
+        return res
+          .status(401)
+          .json(new ApiError(401, "Token has been invalidated, please login again"));
       }
 
       // Attach the user with their role-specific data

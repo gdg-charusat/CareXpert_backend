@@ -5,6 +5,7 @@ import {
   logout,
   signup,
   adminSignup,
+  refreshAccessToken,
   updateDoctorProfile,
   updatePatientProfile,
   userProfile,
@@ -27,6 +28,7 @@ router.post("/signup", signup);
 router.post("/admin-signup", adminSignup);
 router.post("/login", login);
 router.post("/logout", isAuthenticated, logout);
+router.post("/refresh-token", refreshAccessToken);
 
 router.get("/patient/profile/:id", isAuthenticated, userProfile);
 router.get("/doctor/profile/:id", isAuthenticated, doctorProfile);

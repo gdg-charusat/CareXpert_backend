@@ -12,8 +12,15 @@ import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 
 const generateToken = async (userId: string) => {
   try {
-    const accessToken = generateAccessToken(userId);
-    const refreshToken = generateRefreshToken(userId);
+    // Increment tokenVersion to invalidate any previously issued tokens
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
+    });
+
+    const accessToken = generateAccessToken(userId, user.tokenVersion);
+    const refreshToken = generateRefreshToken(userId, user.tokenVersion);
 
     await prisma.user.update({
       where: { id: userId },
@@ -321,9 +328,13 @@ const logout = async (req: any, res: any) => {
   try {
     const id = (req as any).user.id;
 
+    // Increment tokenVersion to invalidate all existing tokens and clear stored refresh token
     await prisma.user.update({
       where: { id },
-      data: { refreshToken: "" },
+      data: {
+        refreshToken: "",
+        tokenVersion: { increment: 1 },
+      },
     });
 
     const options = {
@@ -334,10 +345,86 @@ const logout = async (req: any, res: any) => {
     return res
       .status(200)
       .clearCookie("accessToken", options)
-      .clearCookie("refresToken", options)
+      .clearCookie("refreshToken", options)
       .json(new ApiResponse(200, "Logout successfully"));
   } catch (err) {
     return res.status(500).json(new ApiError(500, "internal server error"));
+  }
+};
+
+const refreshAccessToken = async (req: any, res: any) => {
+  try {
+    const incomingRefreshToken =
+      req.cookies?.refreshToken || req.body?.refreshToken;
+
+    if (!incomingRefreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token is required"));
+    }
+
+    // Verify the refresh token
+    const jwt = await import("jsonwebtoken");
+    let decoded: any;
+    try {
+      decoded = jwt.default.verify(
+        incomingRefreshToken,
+        process.env.REFRESH_TOKEN_SECRET as string
+      );
+    } catch {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Invalid or expired refresh token"));
+    }
+
+    // Find the user and validate token version
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, refreshToken: true, tokenVersion: true },
+    });
+
+    if (!user) {
+      return res.status(401).json(new ApiError(401, "User not found"));
+    }
+
+    // Check if the stored refresh token matches the incoming one
+    if (user.refreshToken !== incomingRefreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token has been revoked"));
+    }
+
+    // Check if the token version matches — prevents reuse of old tokens
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Token version mismatch, please login again"));
+    }
+
+    // Rotate: generate new tokens with incremented version
+    const { accessToken, refreshToken } = await generateToken(user.id);
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+    };
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken },
+          "Token refreshed successfully"
+        )
+      );
+  } catch (err) {
+    return res
+      .status(500)
+      .json(new ApiError(500, "Internal server error", [err]));
   }
 };
 
@@ -805,6 +892,7 @@ export {
   adminSignup,
   login,
   logout,
+  refreshAccessToken,
   doctorProfile,
   userProfile,
   updatePatientProfile,
