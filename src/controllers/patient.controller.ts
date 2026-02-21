@@ -34,19 +34,19 @@ const searchDoctors = async (req: any, res: Response) => {
         AND: [
           specialty
             ? {
-                specialty: {
-                  contains: specialty as string,
-                  mode: "insensitive", // Case-insensitive search
-                },
-              }
+              specialty: {
+                contains: specialty as string,
+                mode: "insensitive", // Case-insensitive search
+              },
+            }
             : {},
           location
             ? {
-                clinicLocation: {
-                  contains: location as string,
-                  mode: "insensitive", // Case-insensitive search
-                },
-              }
+              clinicLocation: {
+                contains: location as string,
+                mode: "insensitive", // Case-insensitive search
+              },
+            }
             : {},
         ],
       },
@@ -157,7 +157,7 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
 
     res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
-    res.status(400).json(new ApiError(400, "Internal Server Error", [error]));
+    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
@@ -530,7 +530,7 @@ const cancelAppointment = async (req: Request, res: Response) => {
     }
     res
       .status(200)
-      .json(new ApiResponse(500, "Appointment Cancelled successfully!"));
+      .json(new ApiResponse(200, "Appointment Cancelled successfully!"));
   } catch (error) {
     res
       .status(400)

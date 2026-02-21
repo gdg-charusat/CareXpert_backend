@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Role } from "@prisma/client";
 import { ApiError } from "./ApiError";
-import { PrismaClient, User } from "@prisma/client";
-
-const prisma = new PrismaClient();
 
 // Define the user type that will be attached to the request
 export interface UserInRequest {

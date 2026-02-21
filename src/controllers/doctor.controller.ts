@@ -2,15 +2,11 @@ import { Request, Response } from "express";
 import { UserInRequest } from "../utils/helper";
 import {
   AppointmentStatus,
-  PrismaClient,
   TimeSlotStatus,
 } from "@prisma/client";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
-import { time } from "console";
-import doc from "pdfkit";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 const viewDoctorAppointment = async (
   req: Request,
@@ -246,6 +242,7 @@ const cancelAppointment = async (req: Request, res: any) => {
       res
         .status(400)
         .json(new ApiError(400, "Only doctor can cancel Appointments!"));
+      return;
     }
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -256,8 +253,10 @@ const cancelAppointment = async (req: Request, res: any) => {
       res
         .status(400)
         .json(new ApiError(400, "Appointment not found or Unauthorized"));
+      return;
     } else if (appointment.status === AppointmentStatus.CANCELLED) {
       res.status(400).json(new ApiError(400, "Appointment already Cancelled!"));
+      return;
     }
 
     const updatedAppointment = await prisma.appointment.update({
@@ -278,7 +277,7 @@ const cancelAppointment = async (req: Request, res: any) => {
     }
     return res
       .status(200)
-      .json(new ApiResponse(500, "Appointment Cancelled successfully!"));
+      .json(new ApiResponse(200, "Appointment Cancelled successfully!"));
   } catch (error) {
     res
       .status(500)
@@ -336,7 +335,7 @@ const viewTimeslots = async (req: Request, res: Response) => {
 };
 
 const getPatientHistory = async (req: Request, res: Response) => {
-  const patientId = (req as any).params;
+  const { patientId } = (req as any).params;
   const user = (req as any).user;
 
   if (!patientId) {
@@ -369,9 +368,9 @@ const getPatientHistory = async (req: Request, res: Response) => {
       orderBy: { dateRecorded: "desc" },
     });
 
-    res.status(200).json(new ApiResponse(500, history));
+    res.status(200).json(new ApiResponse(200, history));
   } catch (error) {
-    res.status(500).json(new ApiError(400, "Failed to fetch patient history!"));
+    res.status(500).json(new ApiError(500, "Failed to fetch patient history!"));
   }
 };
 
@@ -404,7 +403,7 @@ const updateTimeSlot = async (req: Request, res: Response) => {
 };
 
 const deleteTimeSlot = async (req: Request, res: Response) => {
-  const timeSlotID = (req as any).params.timeSlotID;
+  const timeSlotID = (req as any).params.timeSlotId;
   const doctorId = (req as any).user?.doctor?.id;
 
   if (!doctorId) {
@@ -912,11 +911,11 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         prescriptionId: prescription.id,
         notes: notes || undefined,
       },
-      select : {
-        id : true,
-        patient : {
-          select : {
-            userId : true
+      select: {
+        id: true,
+        patient: {
+          select: {
+            userId: true
           }
         }
       }
