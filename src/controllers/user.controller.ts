@@ -9,6 +9,7 @@ import { Request } from "express";
 import { hash } from "crypto";
 import { isValidUUID } from "../utils/helper";
 import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
+import { sendEmail, welcomeEmailTemplate } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
   try {
@@ -136,7 +137,7 @@ const signup = async (req: Request, res: any) => {
         }
       } else {
         await prisma.patient.create({
-          data: { 
+          data: {
             userId: user.id,
             location: location || null,
           },
@@ -168,6 +169,13 @@ const signup = async (req: Request, res: any) => {
 
       return user;
     });
+
+    // Send welcome email asynchronously
+    sendEmail({
+      to: result.email,
+      subject: "Welcome to CareXpert",
+      html: welcomeEmailTemplate(result.name),
+    }).catch(err => console.error("Failed to send welcome email:", err));
 
     return res
       .status(200)
@@ -597,7 +605,7 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     const unreadCount = await prisma.notification.count({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
@@ -618,7 +626,7 @@ const markNotificationAsRead = async (req: any, res: Response) => {
     const { notificationId } = req.params;
 
     const notification = await prisma.notification.updateMany({
-      where: { 
+      where: {
         id: notificationId,
         userId,
       },
@@ -644,7 +652,7 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     await prisma.notification.updateMany({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },

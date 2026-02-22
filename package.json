@@ -34,6 +34,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.10.1",
+    "@types/nodemailer": "^7.0.11",
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^1.41.3",
@@ -46,6 +47,7 @@
     "moment": "^2.30.1",
     "multer": "^1.4.5-lts.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^8.0.1",
     "pdf-parse": "^1.1.1",
     "pdf-poppler": "^0.2.1",
     "pdf2pic": "^3.2.0",
