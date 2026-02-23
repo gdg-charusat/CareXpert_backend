@@ -21,12 +21,13 @@ import {
 import { isAuthenticated } from "../middlewares/auth.middleware";
 import { isDoctor, isPatient } from "../utils/helper";
 import {upload} from "../middlewares/upload";
+import { loginRateLimiter } from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();
 
 router.post("/signup", signup);
 router.post("/admin-signup", adminSignup);
-router.post("/login", login);
+router.post("/login", loginRateLimiter, login);
 router.post("/logout", isAuthenticated, logout);
 router.post("/refresh-token", refreshAccessToken);
 
