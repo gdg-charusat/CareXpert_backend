@@ -332,7 +332,7 @@ const logout = async (req: any, res: any) => {
     return res
       .status(200)
       .clearCookie("accessToken", options)
-      .clearCookie("refresToken", options)
+      .clearCookie("refreshToken", options)
       .json(new ApiResponse(200, "Logout successfully"));
   } catch (err) {
     return res.status(500).json(new ApiError(500, "internal server error"));
