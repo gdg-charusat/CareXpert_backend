@@ -4,10 +4,10 @@ import prisma from "../utils/prismClient";
 import bcrypt from "bcrypt";
 import { Response } from "express";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
-import { Role } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
-import { isValidUUID } from "../utils/helper";
+import { isValidUUID, validatePassword } from "../utils/helper";
 import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 import jwt from "jsonwebtoken";
 
@@ -83,6 +83,14 @@ const signup = async (req: Request, res: any) => {
     }
   }
 
+  // Validate password strength
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res
+      .status(400)
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -101,8 +109,8 @@ const signup = async (req: Request, res: any) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.create({
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
@@ -113,7 +121,7 @@ const signup = async (req: Request, res: any) => {
       });
 
       if (role === "DOCTOR") {
-        await prisma.doctor.create({
+        await tx.doctor.create({
           data: {
             userId: user.id,
             specialty,
@@ -123,18 +131,18 @@ const signup = async (req: Request, res: any) => {
 
         // Auto-join doctor to city room based on clinic location
         if (clinicLocation) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: clinicLocation },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: clinicLocation },
             });
           }
 
           // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -144,8 +152,8 @@ const signup = async (req: Request, res: any) => {
           });
         }
       } else {
-        await prisma.patient.create({
-          data: {
+        await tx.patient.create({
+          data: { 
             userId: user.id,
             location: location || null,
           },
@@ -153,18 +161,18 @@ const signup = async (req: Request, res: any) => {
 
         // Auto-join patient to city room based on location
         if (location) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: location },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: location },
             });
           }
 
           // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -207,6 +215,14 @@ const adminSignup = async (req: Request, res: any) => {
       .json(new ApiError(400, "Name, email, and password are required"));
   }
 
+  // Validate password strength
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res
+      .status(400)
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -225,9 +241,9 @@ const adminSignup = async (req: Request, res: any) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the user
-      const user = await prisma.user.create({
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
@@ -238,7 +254,7 @@ const adminSignup = async (req: Request, res: any) => {
       });
 
       // Create the admin record
-      const admin = await prisma.admin.create({
+      const admin = await tx.admin.create({
         data: {
           userId: user.id,
           permissions: {
