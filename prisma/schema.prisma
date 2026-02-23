@@ -88,6 +88,7 @@ model Doctor {
   education      String?
   bio            String?
   languages      String[]
+  isVerified     Boolean          @default(false)
   appointments   Appointment[]    @relation("DoctorAppointments")
   prescriptions  Prescription[]
   patientHistory PatientHistory[]

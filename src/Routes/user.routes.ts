@@ -5,6 +5,7 @@ import {
   logout,
   signup,
   adminSignup,
+  refreshAccessToken,
   updateDoctorProfile,
   updatePatientProfile,
   userProfile,
@@ -29,6 +30,7 @@ router.post("/signup", signup);
 router.post("/admin-signup", adminSignup);
 router.post("/login", login);
 router.post("/logout", isAuthenticated, logout);
+router.post("/refresh-token", refreshAccessToken);
 
 // Email Verification routes
 router.get("/verify-email", verifyEmail);
