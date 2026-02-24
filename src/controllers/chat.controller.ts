@@ -5,6 +5,10 @@ import { UserInRequest } from "../utils/helper";
 import axios from "axios";
 import { ApiResponse } from "../utils/ApiResponse";
 
+/** Validate that a string is a well-formed UUID (v4 or any RFC-4122 variant). */
+const isValidUUID = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 const prisma = new PrismaClient();
 
 // Controller to get messages for a room (city chat)
@@ -117,10 +121,25 @@ export const getDmMessages = async (req: Request, res: Response) => {
     // For DMs, we need to find the other user from the roomId pattern
     // roomId format is typically "user1_user2" (sorted alphabetically)
     const userIds = roomId.split("_");
-    const otherUserId = userIds.find((id: string) => id !== userId);
 
-    if (!otherUserId) {
-      return res.status(400).json(new ApiError(400, "Invalid DM room ID"));
+    // Enforce that the roomId contains exactly two UUIDs
+    if (userIds.length !== 2 || !isValidUUID(userIds[0]) || !isValidUUID(userIds[1])) {
+      return res.status(400).json(new ApiError(400, "Invalid DM room ID format"));
+    }
+
+    // Authorization: requesting user must be one of the two participants
+    if (!userIds.includes(userId)) {
+      return res
+        .status(403)
+        .json(new ApiError(403, "You are not authorized to access this conversation"));
+    }
+
+    const otherUserId = userIds.find((id: string) => id !== userId) as string;
+
+    // Verify the other participant actually exists
+    const otherUser = await prisma.user.findUnique({ where: { id: otherUserId }, select: { id: true } });
+    if (!otherUser) {
+      return res.status(404).json(new ApiError(404, "The other user does not exist"));
     }
 
     // Verify user is part of this DM conversation
@@ -196,10 +215,6 @@ export const getOneOnOneChatHistory = async (req: Request, res: Response) => {
     const { page = 1, limit = 50 } = req.query;
     const userId = (req as any).user?.id;
 
-    console.log("1-on-1 Chat History - User ID:", userId);
-    console.log("1-on-1 Chat History - User Role:", (req as any).user?.role);
-    console.log("1-on-1 Chat History - Other User ID:", otherUserId);
-
     if (!otherUserId) {
       return res
         .status(400)
@@ -210,10 +225,30 @@ export const getOneOnOneChatHistory = async (req: Request, res: Response) => {
       return res.status(401).json(new ApiError(401, "User not authenticated"));
     }
 
+    // Validate otherUserId is a properly formatted UUID to prevent enumeration
+    if (!isValidUUID(otherUserId)) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Invalid otherUserId format: must be a valid UUID"));
+    }
+
     if (userId === otherUserId) {
       return res
         .status(400)
         .json(new ApiError(400, "Cannot chat with yourself"));
+    }
+
+    // Authorization: the requesting user must be one of the two participants.
+    // The WHERE clause below already scopes results to userId, but we make the
+    // intent explicit and verify the other user actually exists in the system.
+    const otherUser = await prisma.user.findUnique({
+      where: { id: otherUserId },
+      select: { id: true },
+    });
+    if (!otherUser) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "The specified user does not exist"));
     }
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -339,7 +374,7 @@ export const getCityChatHistory = async (req: Request, res: Response) => {
       });
     } else {
       // Add user to room if not already a member
-      const isMember = room.members.some((member) => member.id === userId);
+      const isMember = room.members.some((member: { id: string }) => member.id === userId);
       if (!isMember) {
         await prisma.room.update({
           where: { id: room.id },
@@ -481,7 +516,7 @@ export const getDoctorDmConversations = async (req: Request, res: Response) => {
     // Group conversations by the other user
     const conversationMap = new Map();
 
-    conversations.forEach((message) => {
+    conversations.forEach((message: any) => {
       const otherUser =
         message.senderId === userId ? message.receiver : message.sender;
       const conversationKey = otherUser?.id;
@@ -588,7 +623,7 @@ export const getPatientDmConversations = async (
     // Group conversations by the other user
     const conversationMap = new Map();
 
-    conversations.forEach((message) => {
+    conversations.forEach((message: any) => {
       const otherUser =
         message.senderId === userId ? message.receiver : message.sender;
       const conversationKey = otherUser?.id;

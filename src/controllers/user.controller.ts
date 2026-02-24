@@ -4,10 +4,10 @@ import prisma from "../utils/prismClient";
 import bcrypt from "bcrypt";
 import { Response } from "express";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
-import { Role } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
-import { isValidUUID } from "../utils/helper";
+import { isValidUUID, validatePassword } from "../utils/helper";
 import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 import jwt from "jsonwebtoken";
 
@@ -23,9 +23,11 @@ const generateToken = async (userId: string) => {
     const accessToken = generateAccessToken(userId, user.tokenVersion);
     const refreshToken = generateRefreshToken(userId, user.tokenVersion);
 
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+
     await prisma.user.update({
       where: { id: userId },
-      data: { refreshToken },
+      data: { refreshToken: hashedRefresh },
     });
 
     return { accessToken, refreshToken };
@@ -81,6 +83,14 @@ const signup = async (req: Request, res: any) => {
     }
   }
 
+  // Validate password strength
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res
+      .status(400)
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -99,20 +109,19 @@ const signup = async (req: Request, res: any) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.create({
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
           password: hashedPassword,
           role,
-          profilePicture:
-            "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
+          profilePicture: null,
         },
       });
 
       if (role === "DOCTOR") {
-        await prisma.doctor.create({
+        await tx.doctor.create({
           data: {
             userId: user.id,
             specialty,
@@ -122,18 +131,18 @@ const signup = async (req: Request, res: any) => {
 
         // Auto-join doctor to city room based on clinic location
         if (clinicLocation) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: clinicLocation },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: clinicLocation },
             });
           }
 
           // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -143,7 +152,7 @@ const signup = async (req: Request, res: any) => {
           });
         }
       } else {
-        await prisma.patient.create({
+        await tx.patient.create({
           data: { 
             userId: user.id,
             location: location || null,
@@ -152,18 +161,18 @@ const signup = async (req: Request, res: any) => {
 
         // Auto-join patient to city room based on location
         if (location) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: location },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: location },
             });
           }
 
           // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -206,6 +215,14 @@ const adminSignup = async (req: Request, res: any) => {
       .json(new ApiError(400, "Name, email, and password are required"));
   }
 
+  // Validate password strength
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res
+      .status(400)
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -224,21 +241,20 @@ const adminSignup = async (req: Request, res: any) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the user
-      const user = await prisma.user.create({
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
           password: hashedPassword,
           role: "ADMIN",
-          profilePicture:
-            "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
+          profilePicture: null,
         },
       });
 
       // Create the admin record
-      const admin = await prisma.admin.create({
+      const admin = await tx.admin.create({
         data: {
           userId: user.id,
           permissions: {
@@ -292,6 +308,12 @@ const login = async (req: any, res: any) => {
         .json(new ApiError(401, "Invalid username or password"));
     }
 
+    if (user.deletedAt) {
+      return res
+        .status(403)
+        .json(new ApiError(403, "This account has been deactivated. Please contact support."));
+    }
+
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res
@@ -316,9 +338,16 @@ const login = async (req: any, res: any) => {
       .json(
         new ApiResponse(
           200,
-          { ...user, accessToken, refreshToken },
-          "Login successfully"
-        )
+          {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePicture: user.profilePicture,
+            accessToken,
+          },
+          "Login successfully",
+        ),
       );
   } catch (err) {
     return res.status(500).json(new ApiError(500, "Internal server error"));
@@ -340,7 +369,8 @@ const logout = async (req: any, res: any) => {
 
     const options = {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const, // Added SameSite policy
     };
 
     return res
@@ -456,7 +486,7 @@ const doctorProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
+            // refreshToken: true,
             createdAt: true,
           },
         },
@@ -486,7 +516,7 @@ const userProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
+            // refreshToken: true,
             createdAt: true,
           },
         },
@@ -519,7 +549,7 @@ const updatePatientProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        refreshToken: true,
+        // refreshToken: true,
         createdAt: true,
       },
     });
@@ -568,7 +598,7 @@ const updateDoctorProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        refreshToken: true,
+        // refreshToken: true,
         createdAt: true,
         doctor: true,
       },
@@ -646,8 +676,8 @@ const getAuthenticatedUserProfile = async (
         new ApiResponse(
           200,
           fullUserProfile,
-          "User profile fetched successfully"
-        )
+          "User profile fetched successfully",
+        ),
       );
     return;
   } catch (error) {
@@ -665,7 +695,7 @@ const getNotifications = async (req: any, res: Response) => {
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
     });
@@ -675,15 +705,19 @@ const getNotifications = async (req: any, res: Response) => {
     });
 
     res.status(200).json(
-      new ApiResponse(200, {
-        notifications,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit)),
+      new ApiResponse(
+        200,
+        {
+          notifications,
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total,
+            pages: Math.ceil(total / Number(limit)),
+          },
         },
-      }, "Notifications fetched successfully")
+        "Notifications fetched successfully",
+      ),
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -696,15 +730,21 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     const unreadCount = await prisma.notification.count({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, { unreadCount }, "Unread count fetched successfully")
-    );
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { unreadCount },
+          "Unread count fetched successfully",
+        ),
+      );
   } catch (error) {
     console.error("Error fetching unread count:", error);
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -717,7 +757,7 @@ const markNotificationAsRead = async (req: any, res: Response) => {
     const { notificationId } = req.params;
 
     const notification = await prisma.notification.updateMany({
-      where: { 
+      where: {
         id: notificationId,
         userId,
       },
@@ -729,9 +769,9 @@ const markNotificationAsRead = async (req: any, res: Response) => {
       return;
     }
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "Notification marked as read")
-    );
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Notification marked as read"));
   } catch (error) {
     console.error("Error marking notification as read:", error);
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -743,16 +783,16 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     await prisma.notification.updateMany({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
       data: { isRead: true },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "All notifications marked as read")
-    );
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "All notifications marked as read"));
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -790,27 +830,32 @@ const getCommunityMembers = async (req: any, res: Response) => {
       return;
     }
 
-    const members = room.members.map(member => ({
+    const members = room.members.map((member) => ({
       id: member.id,
       name: member.name,
       email: member.email,
       profilePicture: member.profilePicture,
       role: member.role,
-      location: member.patient?.location || member.doctor?.clinicLocation || null,
+      location:
+        member.patient?.location || member.doctor?.clinicLocation || null,
       specialty: member.doctor?.specialty || null,
       joinedAt: member.createdAt,
     }));
 
     res.status(200).json(
-      new ApiResponse(200, {
-        room: {
-          id: room.id,
-          name: room.name,
-          createdAt: room.createdAt,
+      new ApiResponse(
+        200,
+        {
+          room: {
+            id: room.id,
+            name: room.name,
+            createdAt: room.createdAt,
+          },
+          members,
+          totalMembers: members.length,
         },
-        members,
-        totalMembers: members.length,
-      }, "Community members fetched successfully")
+        "Community members fetched successfully",
+      ),
     );
   } catch (error) {
     console.error("Error fetching community members:", error);
@@ -843,7 +888,9 @@ const joinCommunity = async (req: any, res: Response) => {
     });
 
     if (existingMember) {
-      res.status(400).json(new ApiError(400, "User is already a member of this community"));
+      res
+        .status(400)
+        .json(new ApiError(400, "User is already a member of this community"));
       return;
     }
 
@@ -857,9 +904,9 @@ const joinCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "Successfully joined the community")
-    );
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Successfully joined the community"));
   } catch (error) {
     console.error("Error joining community:", error);
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -890,9 +937,9 @@ const leaveCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "Successfully left the community")
-    );
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Successfully left the community"));
   } catch (error) {
     console.error("Error leaving community:", error);
     res.status(500).json(new ApiError(500, "Internal server error", [error]));
