@@ -9,11 +9,13 @@ import {
   getPatientDmConversations,
 } from "../controllers/chat.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter";
 
 const router = express.Router();
 
-// Apply authentication middleware to all routes
+// Apply authentication and rate limiting middleware to all routes
 router.use(isAuthenticated);
+router.use(globalRateLimiter);
 
 // Route to get messages for a specific room (city chat)
 // Example: GET /api/chat/room/roomId?page=1&limit=50

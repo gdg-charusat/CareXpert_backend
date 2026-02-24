@@ -6,11 +6,13 @@ import {
   clearChatHistory,
 } from "../controllers/ai-chat.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter";
 
 const router = express.Router();
 
-// All routes require authentication
+// All routes require authentication and rate limiting
 router.use(isAuthenticated);
+router.use(globalRateLimiter);
 
 // POST /api/ai-chat/process - Process user symptoms and get AI analysis
 router.post("/process", processSymptoms as any);

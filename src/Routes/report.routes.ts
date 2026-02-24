@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { isAuthenticated } from "../middlewares/auth.middleware";
 import { createReport, getReport } from "../controllers/report.controller";
 import { upload2 } from "../middlewares/upload";
+import { globalRateLimiter } from "../middlewares/rateLimiter";
 
 // Using the global Request type from helper.ts
 
@@ -20,12 +21,13 @@ const asyncHandler =
 router.post(
   "/",
   isAuthenticated,
+  globalRateLimiter,
   upload2.single("report"),
   asyncHandler(createReport)
 );
 
 // Get a report by ID
-router.get("/:id", isAuthenticated, asyncHandler(getReport));
+router.get("/:id", isAuthenticated, globalRateLimiter, asyncHandler(getReport));
 
 // Error handling is now done globally in index.ts
 
