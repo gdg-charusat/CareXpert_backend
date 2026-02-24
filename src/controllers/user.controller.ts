@@ -22,6 +22,7 @@ const generateToken = async (userId: string) => {
 
     const accessToken = generateAccessToken(userId, user.tokenVersion);
     const refreshToken = generateRefreshToken(userId, user.tokenVersion);
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
 
     await prisma.user.update({
       where: { id: userId },
