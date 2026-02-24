@@ -14,7 +14,7 @@ import fs from "fs";
 import cacheService from "../utils/cacheService";
 
 const searchDoctors = async (req: any, res: Response) => {
-  // normalize query params (treat whitespace as empty)
+  // Normalize query params (treat whitespace as empty)
   const specialty =
     typeof req.query.specialty === "string" ? req.query.specialty.trim() : "";
   const location =
@@ -47,7 +47,7 @@ const searchDoctors = async (req: any, res: Response) => {
             ? {
                 specialty: {
                   contains: specialty,
-                  mode: "insensitive",
+                  mode: "insensitive", // Case-insensitive search
                 },
               }
             : {},
@@ -55,7 +55,7 @@ const searchDoctors = async (req: any, res: Response) => {
             ? {
                 clinicLocation: {
                   contains: location,
-                  mode: "insensitive",
+                  mode: "insensitive", // Case-insensitive search
                 },
               }
             : {},
