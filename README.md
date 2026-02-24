@@ -21,7 +21,7 @@ This is the **backend** of the **Smart Patient Symptom Checker & Appointment Pla
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/vasu-CE/careXpert_backend
+git clone https://github.com/gdg-charusat/CareXpert_backend
 cd careXpert_backend
 ```
 

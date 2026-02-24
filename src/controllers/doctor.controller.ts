@@ -10,6 +10,7 @@ import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
 import { time } from "console";
 import doc from "pdfkit";
+import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../utils/emailService";
 
 const viewDoctorAppointment = async (
   req: Request,
@@ -47,7 +48,10 @@ const viewDoctorAppointment = async (
 
     const appointments = await prisma.appointment.findMany({
       where: filters,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        notes: true,
         patient: {
           select: {
             user: {
@@ -58,13 +62,13 @@ const viewDoctorAppointment = async (
             },
           },
         },
-        timeSlot: true,
+        timeSlot: {
+          select: {
+            startTime: true,
+            endTime: true,
+          },
+        },
       },
-      // orderBy: {
-      //   timeSlot: {
-      //     startTime: "asc",
-      //   },
-      // },
     });
 
     const formattedAppointments = appointments.map((appointment: any) => ({
@@ -102,8 +106,25 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
       where: { id },
       include: {
         timeSlot: true,
-        patient: true,
-        doctor: true,
+        patient: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              }
+            }
+          }
+        },
+        doctor: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              }
+            }
+          }
+        },
       },
     });
     if (!appointment) {
@@ -145,6 +166,16 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
           dateRecorded: new Date(),
         },
       });
+
+      // Send prescription email asynchronously
+      sendEmail({
+        to: (appointment as any).patient.user.email,
+        subject: "New Prescription Available - CareXpert",
+        html: prescriptionTemplate(
+          (appointment as any).doctor.user.name,
+          new Date().toLocaleDateString()
+        ),
+      }).catch(err => console.error("Failed to send prescription email:", err));
     }
     res
       .status(200)
@@ -671,9 +702,21 @@ const getAllDoctorAppointments = async (
 
     const appointments = await prisma.appointment.findMany({
       where: filters,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        appointmentType: true,
+        date: true,
+        time: true,
+        notes: true,
+        consultationFee: true,
+        createdAt: true,
+        updatedAt: true,
+        prescriptionId: true,
         patient: {
-          include: {
+          select: {
+            id: true,
+            medicalHistory: true,
             user: {
               select: {
                 name: true,
@@ -683,7 +726,12 @@ const getAllDoctorAppointments = async (
             },
           },
         },
-        timeSlot: true,
+        timeSlot: {
+          select: {
+            startTime: true,
+            endTime: true,
+          },
+        },
       },
       orderBy: {
         timeSlot: {
@@ -745,9 +793,19 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
         doctorId: doctor.id,
         status: AppointmentStatus.PENDING,
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        appointmentType: true,
+        date: true,
+        time: true,
+        notes: true,
+        consultationFee: true,
+        createdAt: true,
         patient: {
-          include: {
+          select: {
+            id: true,
+            medicalHistory: true,
             user: {
               select: {
                 name: true,
@@ -757,7 +815,14 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
             },
           },
         },
-        timeSlot: true,
+        timeSlot: {
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            consultationFee: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -913,6 +978,19 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       }
     }
 
+    // Send email to patient asynchronously
+    sendEmail({
+      to: appointment.patient.user.email,
+      subject: action === "accept" ? "Appointment Confirmed" : "Appointment Request Declined",
+      html: appointmentStatusTemplate(
+        doctor.user.name,
+        action === "accept" ? "CONFIRMED" : "REJECTED",
+        new Date(appointment.date).toLocaleDateString(),
+        appointment.time,
+        action === "accept" ? undefined : rejectionReason
+      ),
+    }).catch(err => console.error("Failed to send appointment status email:", err));
+
     res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,
       notification,
@@ -1030,11 +1108,11 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         prescriptionId: prescription.id,
         notes: notes || undefined,
       },
-      select : {
-        id : true,
-        patient : {
-          select : {
-            userId : true
+      select: {
+        id: true,
+        patient: {
+          select: {
+            userId: true
           }
         }
       }

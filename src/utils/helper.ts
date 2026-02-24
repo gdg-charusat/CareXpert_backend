@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { Role } from "@prisma/client";
 import { ApiError } from "./ApiError";
-import { PrismaClient, User } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { User } from "@prisma/client";
+import prisma from "./prismClient";
 
 // Define the user type that will be attached to the request
 export interface UserInRequest {
@@ -366,4 +365,53 @@ export const formatMedicalReport = (data: {
   }
 
   return report.join("\n");
+};
+
+/**
+ * Validates password strength
+ * Requirements:
+ * - Minimum 8 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one number
+ * - At least one special character
+ * @param password - The password to validate
+ * @returns Object with isValid boolean and error message if invalid
+ */
+export const validatePassword = (password: string): { isValid: boolean; message?: string } => {
+  if (!password || password.trim() === "") {
+    return { isValid: false, message: "Password is required" };
+  }
+
+  if (password.length < 8) {
+    return { isValid: false, message: "Password must be at least 8 characters long" };
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one uppercase letter" };
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one lowercase letter" };
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one number" };
+  }
+
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one special character (!@#$%^&*()_+-=[]{}...)" };
+  }
+
+  // Check for common weak passwords
+  const commonWeakPasswords = [
+    "password", "password123", "12345678", "qwerty123", "admin123",
+    "welcome123", "letmein123", "monkey123", "dragon123", "master123"
+  ];
+  
+  if (commonWeakPasswords.includes(password.toLowerCase())) {
+    return { isValid: false, message: "This password is too common. Please choose a stronger password" };
+  }
+
+  return { isValid: true };
 };

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { AppError } from "../utils/AppError";
 import { analyzeReport } from "../utils/analyzeReport";
 import { extractTextFromFile, validateFile } from "../utils/textExtractor";
@@ -9,7 +9,7 @@ import * as path from "path";
 // Extend Express Request type to include user
 // Using the global Request type from helper.ts
 
-const prisma = new PrismaClient();
+// use shared prisma client from utils/prismClient
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;

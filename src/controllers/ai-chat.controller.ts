@@ -4,8 +4,14 @@ import prisma from "../utils/prismClient";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// Initialize Gemini AI (lazy loading)
+const getGenAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not set in environment variables');
+  }
+  return new GoogleGenerativeAI(apiKey);
+};
 
 interface GeminiResponse {
   probable_causes: string[];
@@ -63,6 +69,7 @@ Respond with ONLY a valid JSON object in this exact format:
 Important: Respond with ONLY the JSON object, no additional text or formatting.`;
 
     // Get the Gemini model
+    const genAI = getGenAI();
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Generate content
