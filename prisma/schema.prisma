@@ -44,7 +44,7 @@ model User {
   role                   Role     @default(PATIENT)
   refreshToken           String?
 
-  // 🔐 Auth & security
+  // 🔐 Auth & Security
   tokenVersion           Int      @default(0)
   isEmailVerified        Boolean  @default(false)
   emailVerificationToken String?
