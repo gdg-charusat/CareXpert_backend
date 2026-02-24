@@ -23,23 +23,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Root endpoint
-app.get("/", (req, res) => {
-  res.json({
-    message: "CareXpert Backend API",
-    version: "1.0.0",
-    status: "running",
-    endpoints: {
-      auth: "/api/user",
-      doctor: "/api/doctor",
-      patient: "/api/patient",
-      chat: "/api/chat",
-      report: "/api/report",
-      aiChat: "/api/ai-chat"
-    }
-  });
-});
-
 // Use Routes
 app.use("/api", routes);
 
