@@ -9,6 +9,9 @@ const memoryStore = new Map<string, { count: number; resetTime: number }>();
 const redisStore = {
   async increment(key: string): Promise<{ totalHits: number; resetTime: Date }> {
     try {
+      if (!redisClient.isReady) {
+        return memoryFallback(key);
+      }
       const now = Date.now();
       const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000');
       const resetTime = new Date(now + windowMs);
