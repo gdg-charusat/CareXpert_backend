@@ -7,6 +7,7 @@ import { Server, Socket } from "socket.io";
 import http from "http";
 import { handleRoomSocket } from "./chat/roomManager";
 import { handleDmSocket } from "./chat/dmManager";
+import { notFoundHandler, errorHandler } from "./middlewares/errorHandler.middleware";
 
 dotenv.config();
 
@@ -26,31 +27,11 @@ app.use(cookieParser());
 // Use Routes
 app.use("/api", routes);
 
-// Global error handling middleware (must be after all routes)
-app.use(
-  (
-    err: any,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ): void => {
-    console.error("Global error handler:", err);
+// 404 handler – must come after all routes
+app.use(notFoundHandler);
 
-    if (err.name === "MulterError") {
-      res.status(400).json({
-        success: false,
-        message: `File upload error: ${err.message}`,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
-  }
-);
+// Central error handler – must be the last middleware (4-arg signature)
+app.use(errorHandler);
 
 const httpServer = http.createServer(app);
 

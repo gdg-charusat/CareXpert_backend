@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { PrismaClient } from "@prisma/client";
-import { ApiError } from "../utils/ApiError";
+import { AppError } from "../utils/AppError";
 import { analyzeReport } from "../utils/analyzeReport";
 import { extractTextFromFile, validateFile } from "../utils/textExtractor";
 import * as fs from "fs/promises";
@@ -27,21 +27,21 @@ export const createReport = async (
   try {
     const user = (req as any).user;
     if (!user) {
-      throw new ApiError(401, "Authentication required");
+      throw new AppError("Authentication required", 401);
     }
 
     if (user.role !== "PATIENT") {
-      throw new ApiError(403, "Only patients can upload reports");
+      throw new AppError("Only patients can upload reports", 403);
     }
 
     const patientId = user.patient?.id;
     if (!patientId) {
-      throw new ApiError(400, "Patient profile not found");
+      throw new AppError("Patient profile not found", 400);
     }
 
     file = req.file;
     if (!file) {
-      throw new ApiError(400, "No file uploaded");
+      throw new AppError("No file uploaded", 400);
     }
 
     // Validate file
@@ -78,7 +78,7 @@ export const createReport = async (
       },
     });
   } catch (error: unknown) {
-    // Clean up uploaded file if an error occurs
+    // Clean up uploaded file before forwarding the error
     if (file?.path) {
       try {
         await fs.unlink(file.path);
@@ -87,20 +87,7 @@ export const createReport = async (
       }
     }
 
-    if (error instanceof ApiError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error in createReport:", errorMessage);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return next(error);
   }
 };
 
@@ -175,13 +162,17 @@ async function processReportInBackground(
 /**
  * Gets a report by ID
  */
-export const getReport = async (req: Request, res: Response) => {
+export const getReport = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { id } = (req as any).params;
     const user = (req as any).user;
 
     if (!user) {
-      throw new ApiError(401, "Authentication required");
+      throw new AppError("Authentication required", 401);
     }
 
     const report = await prisma.report.findUnique({
@@ -190,12 +181,12 @@ export const getReport = async (req: Request, res: Response) => {
     });
 
     if (!report) {
-      throw new ApiError(404, "Report not found");
+      throw new AppError("Report not found", 404);
     }
 
     // Check if the user has permission to view this report
     if (user.role !== "ADMIN" && report.patientId !== user.patient?.id) {
-      throw new ApiError(403, "You do not have permission to view this report");
+      throw new AppError("You do not have permission to view this report", 403);
     }
 
     return res.json({
@@ -203,20 +194,6 @@ export const getReport = async (req: Request, res: Response) => {
       data: report,
     });
   } catch (error: unknown) {
-    console.error("Error getting report:", error);
-
-    if (error instanceof ApiError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred";
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return next(error);
   }
 };

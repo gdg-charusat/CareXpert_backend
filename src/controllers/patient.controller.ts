@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
-import { ApiError } from "../utils/ApiError";
+import { Request, Response, NextFunction } from "express";
+import { AppError } from "../utils/AppError";
+import { ApiError } from "../utils/ApiError"; // legacy – secondary handlers still use this
 import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 import { isValidUUID, UserInRequest } from "../utils/helper";
@@ -12,20 +13,15 @@ import {
 import PDFDocument from "pdfkit";
 import fs from "fs";
 
-const searchDoctors = async (req: any, res: Response) => {
+const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
   const { specialty, location } = req.query;
 
   // Input validation
   // if (!specialty && !location) {
-  //   res
-  //     .status(400)
-  //     .json(
-  //       new ApiError(
-  //         400,
-  //         "At least one search parameter (specialty or location) is required"
-  //       )
-  //     );
-  //   return;
+  //   return next(new AppError(
+  //     "At least one search parameter (specialty or location) is required",
+  //     400
+  //   ));
   // }
 
   try {
@@ -63,20 +59,18 @@ const searchDoctors = async (req: any, res: Response) => {
 
     res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
-    // console.error("Error in searchDoctors:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return next(error);
   }
 };
 
-const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
+const availableTimeSlots = async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
 
   try {
     // Validate doctorId format
     if (!doctorId || !isValidUUID(doctorId)) {
-      res.status(400).json(new ApiError(400, "Invalid Doctor ID"));
-      return;
+      throw new AppError("Invalid Doctor ID", 400);
     }
 
     // Check if doctor exists
@@ -85,8 +79,7 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
     });
 
     if (!doctor) {
-      res.status(400).json(new ApiError(400, "Doctor not available"));
-      return;
+      throw new AppError("Doctor not available", 404);
     }
 
     // Build where condition
@@ -98,12 +91,7 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
     if (date) {
       const selectedDate = new Date(date as string);
       if (isNaN(selectedDate.getTime())) {
-        res
-          .status(400)
-          .json(
-            new ApiError(400, "Invalid Date format use ISO format(YYYY-MM-DD)")
-          );
-        return;
+        throw new AppError("Invalid Date format use ISO format(YYYY-MM-DD)", 400);
       }
 
       // Set time range for the selected date
@@ -157,13 +145,12 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
 
     res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
-    res.status(400).json(new ApiError(400, "Internal Server Error", [error]));
+    return next(error);
   }
 };
 
-const bookAppointment = async (req: any, res: Response): Promise<void> => {
+const bookAppointment = async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { timeSlotId } = req.body;
-  // const patientId = req.user?.patient?.id; // Get patient ID from authenticated user
   const userId = (req as any).user?.id;
   const patient = await prisma.patient.findUnique({
     where: { userId },
@@ -173,16 +160,12 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
   try {
     // Validate patient is logged in and has a patient profile
     if (!patient) {
-      res
-        .status(400)
-        .json(new ApiError(400, "Only patients can book appointments!"));
-      return;
+      throw new AppError("Only patients can book appointments!", 403);
     }
 
     // Validate timeSlotId
     if (!timeSlotId) {
-      res.status(400).json(new ApiError(400, "Time slot id is required"));
-      return;
+      throw new AppError("Time slot id is required", 400);
     }
 
     // Use transaction to ensure atomicity
@@ -205,17 +188,11 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
       });
 
       if (!timeSlot) {
-        res.status(404).json({
-          success: false,
-          message: "Time slot not found",
-        });
-        return;
+        throw new AppError("Time slot not found", 404);
       }
 
       if (timeSlot.status !== TimeSlotStatus.AVAILABLE) {
-        // throw new Error("This time slot is no longer available");
-        res.status(400).json(new ApiError(400, "Timeslote is already booked"));
-        return;
+        throw new AppError("This time slot is already booked", 409);
       }
 
       // Check if patient already has an appointment at this time
@@ -231,13 +208,9 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
           },
         },
       });
-      // console.log(existingAppointment)
 
       if (existingAppointment) {
-        res
-          .status(400)
-          .json(new ApiError(400, "You have already appointment in this time"));
-        return;
+        throw new AppError("You already have an appointment in this time slot", 409);
       }
       // Create appointment and update time slot status
       const [appointment, updatedTimeSlot] = await Promise.all([
@@ -304,7 +277,7 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
       })
     );
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return next(error);
   }
 };
 
