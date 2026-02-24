@@ -2,15 +2,13 @@ import { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
-import { isValidUUID, UserInRequest } from "../utils/helper";
+import { isValidUUID } from "../utils/helper";
 import {
   TimeSlotStatus,
   AppointmentStatus,
-  Role,
   AppointmentType,
 } from "@prisma/client";
 import PDFDocument from "pdfkit";
-import fs from "fs";
 import cacheService from "../utils/cacheService";
 
 const searchDoctors = async (req: any, res: Response) => {
@@ -80,6 +78,7 @@ const searchDoctors = async (req: any, res: Response) => {
       .json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
+
 const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
@@ -156,7 +155,7 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
     });
 
     // Format the response
-    const formattedSlots = availableSlots.map((slot) => ({
+    const formattedSlots = availableSlots.map((slot: any) => ({
       id: slot.id,
       startTime: slot.startTime,
       endTime: slot.endTime,
@@ -174,8 +173,8 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
 
 const bookAppointment = async (req: any, res: Response): Promise<void> => {
   const { timeSlotId } = req.body;
-  // const patientId = req.user?.patient?.id; // Get patient ID from authenticated user
   const userId = (req as any).user?.id;
+
   const patient = await prisma.patient.findUnique({
     where: { userId },
     select: { id: true },
@@ -197,9 +196,9 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
     }
 
     // Use transaction to ensure atomicity
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Get the time slot and check if it's available
-      const timeSlot = await prisma.timeSlot.findUnique({
+      const timeSlot = await tx.timeSlot.findUnique({
         where: { id: timeSlotId },
         include: {
           doctor: {
@@ -224,7 +223,7 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
       }
 
       // Check if patient already has an appointment at this time
-      const existingAppointment = await prisma.appointment.findFirst({
+      const existingAppointment = await tx.appointment.findFirst({
         where: {
           status: {
             in: [
@@ -240,14 +239,13 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
           },
         },
       });
-      // console.log(existingAppointment)
 
       if (existingAppointment) {
         throw new ApiError(400, "You already have an appointment at this time");
       }
 
       // Atomically mark the time slot as BOOKED to avoid race conditions
-      const updateResult = await prisma.timeSlot.updateMany({
+      const updateResult = await tx.timeSlot.updateMany({
         where: { id: timeSlotId, status: TimeSlotStatus.AVAILABLE },
         data: { status: TimeSlotStatus.BOOKED },
       });
@@ -256,7 +254,7 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
         throw new ApiError(400, "Time slot is already booked");
       }
 
-      const appointment = await prisma.appointment.create({
+      const appointment = await tx.appointment.create({
         data: {
           patientId: patient.id,
           doctorId: timeSlot.doctorId,
@@ -290,7 +288,9 @@ const bookAppointment = async (req: any, res: Response): Promise<void> => {
         },
       });
 
-      const updatedTimeSlot = await prisma.timeSlot.findUnique({ where: { id: timeSlotId } });
+      const updatedTimeSlot = await tx.timeSlot.findUnique({
+        where: { id: timeSlotId },
+      });
 
       return { appointment, updatedTimeSlot };
     });
@@ -339,7 +339,7 @@ const fetchAllDoctors = async (req: any, res: Response) => {
     });
 
     const doctors = await Promise.all(
-      doctorss.map(async (doctor) => {
+      doctorss.map(async (doctor: any) => {
         const nextSlot = await prisma.timeSlot.findFirst({
           where: {
             doctorId: doctor.id,
@@ -419,7 +419,7 @@ const getUpcomingAppointments = async (
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -482,7 +482,7 @@ const getPastAppointments = async (req: any, res: Response): Promise<void> => {
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -529,7 +529,7 @@ const cancelAppointment = async (req: Request, res: Response) => {
       return;
     }
 
-    const updatedAppointment = await prisma.appointment.update({
+    await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         status: AppointmentStatus.CANCELLED,
@@ -570,7 +570,7 @@ const viewPrescriptions = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const Prescriptions = await prisma.prescription.findMany({
+    const prescriptions = await prisma.prescription.findMany({
       where: { patientId },
       include: {
         doctor: {
@@ -588,7 +588,7 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       },
     });
 
-    const formatted = Prescriptions.map((p) => ({
+    const formatted = prescriptions.map((p: any) => ({
       id: p.id,
       date: p.dateIssued,
       prescriptionText: p.prescriptionText,
@@ -698,9 +698,7 @@ const prescriptionPdf = async (req: Request, res: Response) => {
       .text(`Name       : Dr. ${prescription.doctor.user.name}`, {
         indent: 10,
       });
-    doc.text(`Specialty  : ${prescription.doctor.specialty}`, {
-      indent: 10,
-    });
+    doc.text(`Specialty  : ${prescription.doctor.specialty}`, { indent: 10 });
     doc.text(`Clinic        : ${prescription.doctor.clinicLocation}`, {
       indent: 10,
     });
@@ -710,9 +708,7 @@ const prescriptionPdf = async (req: Request, res: Response) => {
 
     doc.moveDown(1);
 
-    // ------------------------
-    // 3) Patient Section
-    // ------------------------
+    // Patient Section
     drawHorizontalLine(doc, doc.y, "#dddddd");
     doc.moveDown(0.5);
 
@@ -726,22 +722,15 @@ const prescriptionPdf = async (req: Request, res: Response) => {
     doc
       .font("Helvetica")
       .fontSize(11)
-      .text(`Name  : ${prescription.patient.user.name}`, {
-        indent: 10,
-      });
-    doc.text(`Email : ${prescription.patient.user.email}`, {
-      indent: 10,
-    });
+      .text(`Name  : ${prescription.patient.user.name}`, { indent: 10 });
+    doc.text(`Email : ${prescription.patient.user.email}`, { indent: 10 });
 
     doc.moveDown(1);
 
-    // ------------------------
-    // 4) Date Issued & Prescription Text
-    // ------------------------
+    // Date Issued & Prescription Text
     drawHorizontalLine(doc, doc.y, "#dddddd");
     doc.moveDown(0.5);
 
-    // Date Issued
     const formattedDate = new Date(prescription.dateIssued).toLocaleDateString(
       "en-IN",
       { day: "2-digit", month: "long", year: "numeric" }
@@ -756,11 +745,10 @@ const prescriptionPdf = async (req: Request, res: Response) => {
 
     doc.moveDown(1);
 
-    // Prescription Details Heading
     doc.font("Helvetica-Bold").fontSize(12).text("Prescription Details:");
     doc.moveDown(0.5);
 
-    // Prescription Text Box (bordered)
+    // Prescription Text Box
     const startX = doc.x;
     const boxWidth =
       doc.page.width - doc.page.margins.left - doc.page.margins.right;
@@ -771,10 +759,10 @@ const prescriptionPdf = async (req: Request, res: Response) => {
       lineGap: 4,
     };
 
-    // Draw a light gray box background
     const boxTop = doc.y;
     const estimatedHeight =
       doc.heightOfString(prescription.prescriptionText, textOptions) + 20;
+
     doc
       .save()
       .rect(startX - 5, boxTop - 5, boxWidth + 10, estimatedHeight + 10)
@@ -782,14 +770,12 @@ const prescriptionPdf = async (req: Request, res: Response) => {
       .fill("#cccccc")
       .restore();
 
-    // Write the prescription text inside the box
     doc
       .font("Helvetica")
       .fontSize(11)
       .fillColor("#000000")
       .text(prescription.prescriptionText, startX, boxTop, textOptions);
 
-    // Move to end of box
     doc.moveDown(2);
 
     const footerY = doc.page.height - doc.page.margins.bottom - 40;
@@ -810,9 +796,7 @@ const prescriptionPdf = async (req: Request, res: Response) => {
         { align: "left" }
       );
 
-    doc.text("Powered by CareXpert", 40, footerY + 15, {
-      align: "left",
-    });
+    doc.text("Powered by CareXpert", 40, footerY + 15, { align: "left" });
     doc.end();
   } catch (error) {
     res.status(500).json(new ApiError(500, "internal server error", [error]));
@@ -826,7 +810,6 @@ const cityRooms = async (req: Request, res: Response) => {
       return res.status(401).json(new ApiError(401, "User not authenticated"));
     }
 
-    // Get all city rooms that the patient can join
     const rooms = await prisma.room.findMany({
       include: {
         members: {
@@ -875,7 +858,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Validate required fields
     if (!doctorId || !date || !time) {
       res
         .status(400)
@@ -893,7 +875,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Validate date format (should be YYYY-MM-DD)
     const appointmentDate = new Date(date);
     if (isNaN(appointmentDate.getTime())) {
       res
@@ -902,7 +883,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Validate time format (should be HH:mm)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(time)) {
       res
@@ -911,7 +891,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Check if doctor exists
     const doctor = await prisma.doctor.findUnique({
       where: { id: doctorId },
       include: {
@@ -928,7 +907,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Check if patient exists
     const patient = await prisma.patient.findUnique({
       where: { id: patientId },
       include: {
@@ -945,7 +923,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Check if patient already has a pending appointment with this doctor
     const existingPendingAppointment = await prisma.appointment.findFirst({
       where: {
         patientId,
@@ -966,7 +943,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Check for conflicting appointments (same doctor, date, and time)
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         doctorId,
@@ -990,7 +966,6 @@ const bookDirectAppointment = async (
       return;
     }
 
-    // Create the appointment
     const appointment = await prisma.appointment.create({
       data: {
         patientId,
@@ -1025,7 +1000,6 @@ const bookDirectAppointment = async (
       },
     });
 
-    // Format the response
     const formattedAppointment = {
       id: appointment.id,
       status: appointment.status,
@@ -1089,7 +1063,7 @@ const getAllPatientAppointments = async (
       orderBy: [{ date: "asc" }, { time: "asc" }],
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       appointmentType: appointment.appointmentType,
@@ -1121,8 +1095,10 @@ const getAllPatientAppointments = async (
   }
 };
 
-// Notification functions for patients
-const getPatientNotifications = async (req: Request, res: Response): Promise<void> => {
+const getPatientNotifications = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const userId = (req as any).user?.id;
   const { isRead } = req.query;
 
@@ -1157,11 +1133,16 @@ const getPatientNotifications = async (req: Request, res: Response): Promise<voi
     res.status(200).json(new ApiResponse(200, notifications));
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
+    res
+      .status(500)
+      .json(new ApiError(500, "Failed to fetch notifications!", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
+const markNotificationAsRead = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { notificationId } = req.params;
   const userId = (req as any).user?.id;
 
@@ -1181,14 +1162,21 @@ const markNotificationAsRead = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
+    res
+      .status(200)
+      .json(new ApiResponse(200, { message: "Notification marked as read" }));
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
+    res
+      .status(500)
+      .json(new ApiError(500, "Failed to mark notification as read!", [error]));
   }
 };
 
-const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<void> => {
+const markAllNotificationsAsRead = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const userId = (req as any).user?.id;
 
   try {
@@ -1202,10 +1190,16 @@ const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<
       },
     });
 
-    res.status(200).json(new ApiResponse(200, { message: "All notifications marked as read" }));
+    res
+      .status(200)
+      .json(new ApiResponse(200, { message: "All notifications marked as read" }));
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark all notifications as read!", [error]));
+    res
+      .status(500)
+      .json(
+        new ApiError(500, "Failed to mark all notifications as read!", [error])
+      );
   }
 };
 
