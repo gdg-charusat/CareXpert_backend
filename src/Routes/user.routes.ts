@@ -29,6 +29,7 @@ router.post("/signup", signupRateLimiter, signup);
 router.post("/admin-signup", signupRateLimiter, adminSignup);
 router.post("/login", loginRateLimiter, login);
 router.post("/logout", isAuthenticated, globalRateLimiter, logout);
+
 router.post("/refresh-token", refreshAccessToken);
 
 router.get("/patient/profile/:id", isAuthenticated, globalRateLimiter, userProfile);
