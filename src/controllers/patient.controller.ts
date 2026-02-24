@@ -14,12 +14,28 @@ import fs from "fs";
 import cacheService from "../utils/cacheService";
 
 const searchDoctors = async (req: any, res: Response) => {
-  const { specialty, location } = req.query;
+  // normalize query params (treat whitespace as empty)
+  const specialty =
+    typeof req.query.specialty === "string" ? req.query.specialty.trim() : "";
+  const location =
+    typeof req.query.location === "string" ? req.query.location.trim() : "";
+
+  // Input validation: require at least one filter
+  if (!specialty && !location) {
+    return res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "At least one search parameter (specialty or location) is required"
+        )
+      );
+  }
 
   try {
-    const cacheKey = `doctors:${specialty || 'all'}:${location || 'all'}`;
+    const cacheKey = `doctors:${specialty || "all"}:${location || "all"}`;
     const cached = await cacheService.get(cacheKey);
-    
+
     if (cached) {
       return res.status(200).json(new ApiResponse(200, cached));
     }
@@ -30,7 +46,7 @@ const searchDoctors = async (req: any, res: Response) => {
           specialty
             ? {
                 specialty: {
-                  contains: specialty as string,
+                  contains: specialty,
                   mode: "insensitive",
                 },
               }
@@ -38,7 +54,7 @@ const searchDoctors = async (req: any, res: Response) => {
           location
             ? {
                 clinicLocation: {
-                  contains: location as string,
+                  contains: location,
                   mode: "insensitive",
                 },
               }
@@ -64,12 +80,13 @@ const searchDoctors = async (req: any, res: Response) => {
     });
 
     await cacheService.set(cacheKey, doctors, 3600);
-    res.status(200).json(new ApiResponse(200, doctors));
+    return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res
+      .status(500)
+      .json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
-
 const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
