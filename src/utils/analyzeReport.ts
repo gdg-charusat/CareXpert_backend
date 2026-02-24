@@ -100,6 +100,17 @@ export const analyzeReport = async (text: string, useCache: boolean = true): Pro
     throw new AIAnalysisError('No text provided for analysis', 400);
   }
 
+  // Check if Gemini API is available
+  if (!model || !GEMINI_API_KEY) {
+    return {
+      summary: "AI analysis is currently unavailable. Please configure GEMINI_API_KEY in your environment variables.",
+      abnormal_values: [],
+      possible_conditions: [],
+      recommendation: "Please consult with a healthcare professional to interpret your medical reports.",
+      disclaimer: "AI-powered medical report analysis is not available. This is not a substitute for professional medical advice."
+    };
+  }
+
   const cacheKey = generateTextHash(text);
 
   if (useCache && analysisCache.has(cacheKey)) {
@@ -157,7 +168,7 @@ You MUST respond only in the following JSON format:
     const result = await chat.sendMessage([
       { text: `${prompt}\n\nMedical Report Text:\n${text}` }
     ]);
-    
+
 
     const response = await result.response;
     const responseText = await response.text();
@@ -196,7 +207,7 @@ You MUST respond only in the following JSON format:
         analysisCache.delete(firstKey);
       }
     }
-    
+
 
     return analysis;
   } catch (error) {

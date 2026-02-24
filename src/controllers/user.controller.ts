@@ -158,8 +158,8 @@ const signup = async (req: Request, res: any) => {
           });
         }
       } else {
-        await tx.patient.create({
-          data: { 
+        await prisma.patient.create({
+          data: {
             userId: user.id,
             location: location || null,
           },

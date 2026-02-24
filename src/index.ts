@@ -7,6 +7,7 @@ import { Server, Socket } from "socket.io";
 import http from "http";
 import { handleRoomSocket } from "./chat/roomManager";
 import { handleDmSocket } from "./chat/dmManager";
+import { globalRateLimiter } from "./middlewares/rateLimit";
 
 dotenv.config();
 
@@ -16,10 +17,11 @@ const app = express();
 // app.use(cors()); // Remove default CORS middleware
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
+app.use(globalRateLimiter); // Global rate limiting
 app.use(express.json());
 app.use(cookieParser());
 
@@ -56,7 +58,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: "http://localhost:5173",
     methods: ["GET", "POST"],
     credentials: true,
   },
