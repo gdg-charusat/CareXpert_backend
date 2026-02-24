@@ -61,14 +61,7 @@ const searchDoctors = async (req: any, res: Response) => {
             : {},
         ],
       },
-      select: {
-        id: true,
-        specialty: true,
-        clinicLocation: true,
-        experience: true,
-        education: true,
-        bio: true,
-        languages: true,
+      include: {
         user: {
           select: {
             name: true,
