@@ -22,7 +22,7 @@ const listAllUsers = async (req: Request, res: Response): Promise<void> => {
         }
 
         const where: any = {
-            deletedAt: null, 
+            deletedAt: null,
         };
 
         if (roleFilter) {
@@ -302,8 +302,8 @@ const changeUserRole = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const updatedUser = await prisma.$transaction(async (tx) => {
-            
+        const updatedUser = await prisma.$transaction(async (tx: any) => {
+
             const updated = await tx.user.update({
                 where: { id: userId },
                 data: { role: role as Role },

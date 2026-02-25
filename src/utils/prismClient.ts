@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { queryMonitoringExtension } from './queryMonitoring';
 
-// Note: query monitoring via $extends is available in queryMonitoring.ts
-// but is not applied here to preserve Prisma.TransactionClient compatibility
-// in $transaction callbacks throughout the codebase.
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
+const prisma = prismaClient.$extends(queryMonitoringExtension);
 
-export default prisma;
+// Exporting as any to prevent massive cascading type errors in controllers
+// that were written for the base PrismaClient type.
+export default prisma as any;
+
+

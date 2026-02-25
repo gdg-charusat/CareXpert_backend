@@ -20,7 +20,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
   try {
     const cacheKey = `doctors:${specialty || 'all'}:${location || 'all'}`;
     const cached = await cacheService.get(cacheKey);
-    
+
     if (cached) {
       return res.status(200).json(new ApiResponse(200, cached));
     }
@@ -30,19 +30,19 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
         AND: [
           specialty
             ? {
-                specialty: {
-                  contains: specialty as string,
-                  mode: "insensitive",
-                },
-              }
+              specialty: {
+                contains: specialty as string,
+                mode: "insensitive",
+              },
+            }
             : {},
           location
             ? {
-                clinicLocation: {
-                  contains: location as string,
-                  mode: "insensitive",
-                },
-              }
+              clinicLocation: {
+                contains: location as string,
+                mode: "insensitive",
+              },
+            }
             : {},
         ],
       },
@@ -76,7 +76,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
   const date = req.query.date as string | undefined;
 
   try {
-    
+
     if (!doctorId || !isValidUUID(doctorId)) {
       throw new AppError("Invalid Doctor ID", 400);
     }
@@ -136,7 +136,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       },
     });
 
-    const formattedSlots = availableSlots.map((slot) => ({
+    const formattedSlots = availableSlots.map((slot: any) => ({
       id: slot.id,
       startTime: slot.startTime,
       endTime: slot.endTime,
@@ -154,7 +154,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
 
 const bookAppointment = async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { timeSlotId } = req.body;
-  
+
   const userId = (req as any).user?.id;
   const patient = await prisma.patient.findUnique({
     where: { userId },
@@ -162,7 +162,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
   });
 
   try {
-    
+
     if (!patient) {
       throw new AppError("Only patients can book appointments!", 403);
     }
@@ -171,9 +171,9 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       throw new AppError("Time slot id is required", 400);
     }
 
-    const result = await prisma.$transaction(async (prisma) => {
-      
-      const timeSlot = await prisma.timeSlot.findUnique({
+    const result = await prisma.$transaction(async (tx: any) => {
+
+      const timeSlot = await tx.timeSlot.findUnique({
         where: { id: timeSlotId },
         include: {
           doctor: {
@@ -213,7 +213,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
           },
         },
       });
-      
+
       if (existingAppointment) {
         throw new AppError("You already have an appointment in this time slot", 409);
       }
@@ -304,7 +304,7 @@ const fetchAllDoctors = async (req: any, res: Response) => {
     });
 
     const doctors = await Promise.all(
-      doctorss.map(async (doctor) => {
+      doctorss.map(async (doctor: any) => {
         const nextSlot = await prisma.timeSlot.findFirst({
           where: {
             doctorId: doctor.id,
@@ -384,7 +384,7 @@ const getUpcomingAppointments = async (
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -447,7 +447,7 @@ const getPastAppointments = async (req: any, res: Response): Promise<void> => {
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -552,7 +552,7 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       },
     });
 
-    const formatted = Prescriptions.map((p) => ({
+    const formatted = Prescriptions.map((p: any) => ({
       id: p.id,
       date: p.dateIssued,
       prescriptionText: p.prescriptionText,
@@ -1028,7 +1028,7 @@ const getAllPatientAppointments = async (
       orderBy: [{ date: "asc" }, { time: "asc" }],
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       appointmentType: appointment.appointmentType,

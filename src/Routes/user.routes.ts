@@ -22,7 +22,7 @@ import {
 } from "../controllers/user.controller";
 
 import { isAuthenticated } from "../middlewares/auth.middleware";
-import { isDoctor, isPatient } from "../utils/helper";
+import { isDoctor, isPatient, isAdmin } from "../utils/helper";
 import { upload } from "../middlewares/upload";
 import {
   loginRateLimiter,
@@ -33,7 +33,18 @@ import {
 const router = express.Router();
 
 router.post("/signup", signupRateLimiter, signup);
-router.post("/admin-signup", signupRateLimiter, adminSignup);
+router.post(
+  "/admin-signup",
+  signupRateLimiter,
+  (req, res, next) => {
+    const secret = req.header("X-Admin-Secret");
+    if (secret && secret === process.env.ADMIN_SIGNUP_SECRET) {
+      return next();
+    }
+    isAuthenticated(req, res, () => isAdmin(req, res, next));
+  },
+  adminSignup
+);
 router.post("/login", loginRateLimiter, login);
 router.post("/logout", isAuthenticated, globalRateLimiter, logout);
 router.post("/refresh-token", refreshAccessToken);
