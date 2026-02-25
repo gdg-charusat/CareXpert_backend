@@ -853,7 +853,7 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
 };
 
 const respondToAppointmentRequest = async (req: Request, res: Response): Promise<void> => {
-  const { appointmentId } = req.params;
+  const appointmentId = req.params.appointmentId as string;
   const { action, rejectionReason, alternativeSlots } = req.body; 
   const userId = (req as any).user?.id;
 
@@ -1030,7 +1030,7 @@ const getDoctorNotifications = async (req: Request, res: Response): Promise<void
 };
 
 const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
-  const { notificationId } = req.params;
+  const notificationId = req.params.notificationId as string;
   const userId = (req as any).user?.id;
 
   try {
@@ -1057,7 +1057,7 @@ const markNotificationAsRead = async (req: Request, res: Response): Promise<void
 };
 
 const addPrescriptionToAppointment = async (req: Request, res: Response): Promise<void> => {
-  const { appointmentId } = req.params;
+  const appointmentId = req.params.appointmentId as string;
   const { prescriptionText, notes } = req.body as { prescriptionText?: string; notes?: string };
   const doctorUserId = (req as any).user?.id;
 
@@ -1121,7 +1121,7 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
 };
 
 const markAppointmentCompleted = async (req: Request, res: Response): Promise<void> => {
-  const { appointmentId } = req.params;
+  const appointmentId = req.params.appointmentId as string;
   const doctorUserId = (req as any).user?.id;
 
   try {

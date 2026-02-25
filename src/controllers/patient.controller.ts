@@ -1100,7 +1100,7 @@ const getPatientNotifications = async (req: Request, res: Response): Promise<voi
 };
 
 const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
-  const { notificationId } = req.params;
+  const notificationId = req.params.notificationId as string;
   const userId = (req as any).user?.id;
 
   try {

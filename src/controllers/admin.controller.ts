@@ -85,7 +85,7 @@ const listAllUsers = async (req: Request, res: Response): Promise<void> => {
 };
 
 const verifyDoctor = async (req: Request, res: Response): Promise<void> => {
-    const { doctorUserId } = req.params;
+    const doctorUserId = req.params.doctorUserId as string;
 
     if (!doctorUserId || !isValidUUID(doctorUserId)) {
         res.status(400).json(new ApiError(400, "Valid doctor user ID is required"));
@@ -205,7 +205,7 @@ const getDashboardStats = async (
 };
 
 const softDeleteUser = async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     const adminUserId = (req as any).user?.id;
 
     if (!userId || !isValidUUID(userId)) {
@@ -256,7 +256,7 @@ const softDeleteUser = async (req: Request, res: Response): Promise<void> => {
 };
 
 const changeUserRole = async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     const { role, specialty, clinicLocation, location } = req.body;
     const adminUserId = (req as any).user?.id;
 
