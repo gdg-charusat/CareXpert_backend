@@ -8,11 +8,14 @@
     "strict": true,
     "skipLibCheck": true,
     "types": [
-      "node",
-      "jest"
+      "node"
     ]
   },
   "include": [
     "src/**/*"
+  ],
+  "exclude": [
+    "src/__tests__",
+    "**/*.test.ts"
   ]
 }
