@@ -18,6 +18,10 @@ import {
   addPrescriptionToAppointment,
   markAppointmentCompleted,
   generateBulkTimeSlots,
+  viewDoctorPrescriptions,
+  getDoctorPrescriptionPdf,
+  getPatientReports,
+  getPatientReport,
 } from "../controllers/doctor.controller";
 import { isDoctor } from "../utils/helper";
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -122,6 +126,37 @@ router.patch(
   globalRateLimiter,
   isDoctor,
   markNotificationAsRead
+);
+router.get(
+  "/prescriptions",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  viewDoctorPrescriptions
+);
+
+router.get(
+  "/prescription-pdf/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getDoctorPrescriptionPdf
+);
+
+router.get(
+  "/patient/:patientId/reports",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPatientReports
+);
+
+router.get(
+  "/patient/report/:reportId",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPatientReport
 );
 
 export default router;

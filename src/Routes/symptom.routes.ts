@@ -5,14 +5,13 @@ import {
   deleteSymptom,
 } from "../controllers/symptom.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
-import { isPatient } from "../utils/helper";
 
 const router = express.Router();
 
-router.post("/log", isAuthenticated, isPatient, logSymptom);
+router.post("/log", isAuthenticated, logSymptom);
 
-router.get("/history", isAuthenticated, isPatient, getSymptomHistory);
+router.get("/history", isAuthenticated, getSymptomHistory);
 
-router.delete("/:symptomId", isAuthenticated, isPatient, deleteSymptom);
+router.delete("/:symptomId", isAuthenticated, deleteSymptom);
 
 export default router;
