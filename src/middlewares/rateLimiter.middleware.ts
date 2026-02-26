@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
-import { redisClient } from "../utils/redis";
+import redisClient from "../utils/redis";
 
 const noRateLimit = (_req: Request, _res: Response, next: NextFunction) =>
   next();
