@@ -10,6 +10,7 @@ import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
 import doc from "pdfkit";
 import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../utils/emailService";
+import { emitNotificationToUser } from "../chat/index";
 
 const viewDoctorAppointment = async (
   req: Request,
@@ -978,6 +979,10 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       ),
     }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
+    if (notification && notification.userId) {
+      emitNotificationToUser(req.app.get("io"), notification.userId, notification);
+    }
+
     res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,
       notification,
@@ -1104,15 +1109,14 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
     });
     console.log(updatedAppointment)
     
-    await prisma.notification.create({
-      data: {
-        userId: updatedAppointment.patient.userId,
+    if (updatedAppointment?.patient?.userId) {
+      emitNotificationToUser(req.app.get("io"), updatedAppointment.patient.userId, {
         type: "PRESCRIPTION_ADDED",
         title: "Prescription Available",
         message: "Your doctor has added a prescription for your appointment.",
         appointmentId: appointment.id,
-      },
-    });
+      });
+    }
 
     res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
   } catch (error) {

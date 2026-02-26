@@ -99,10 +99,12 @@ const io         = new Server(httpServer, { cors: { origin: "*" }, transports: [
 
 const roomNsp = io.of("/chat/room");
 const dmNsp   = io.of("/chat/dm");
+const notifNsp = io.of("/notifications");
 
 // createSocketAuthMiddleware is the production factory — only findUser is mocked
 roomNsp.use(createSocketAuthMiddleware(mockFindUser));
 dmNsp.use(createSocketAuthMiddleware(mockFindUser));
+notifNsp.use(createSocketAuthMiddleware(mockFindUser));
 
 roomNsp.on("connection", (socket) => {
   socket.on("joinRoom", (msg) => {
@@ -150,6 +152,13 @@ dmNsp.on("connection", (socket) => {
     const username = socket.data.name;
     socket.to(roomId).emit("message", { text, username, createdAt: new Date() });
   });
+});
+
+notifNsp.on("connection", (socket) => {
+  const userId = socket.data.userId;
+  if (userId) {
+    socket.join(userId);
+  }
 });
 
 // ─── Test Runner ─────────────────────────────────────────────────────────────
@@ -319,6 +328,32 @@ async function testDmEvents(dmS) {
   finally { dmS2?.disconnect(); }
 }
 
+// ─── Domain suite 5: /notifications event handling ──────────────────────────
+// Group 9: real-time notification delivery.
+async function testNotificationEvents() {
+  console.log("\n[Group 9] /notifications  –  real-time notification delivery\n");
+  let notifSocket;
+  try {
+    notifSocket = await connect("/notifications", VALID_TOKEN);
+    notifSocket.emit("join", {}); // no-op, just to trigger connect
+    // Listen for new_notification
+    const notifPromise = waitFor(notifSocket, "new_notification");
+    // Simulate server-side emit
+    const payload = { type: "TEST", message: "Hello, notification!" };
+    notifNsp.to(MOCK_USER.id).emit("new_notification", payload);
+    const received = await notifPromise;
+    if (received && received.message === "Hello, notification!") {
+      ok("new_notification → received by user");
+    } else {
+      no("new_notification → received", JSON.stringify(received));
+    }
+  } catch (e) {
+    no("/notifications delivery", e.message);
+  } finally {
+    notifSocket?.disconnect();
+  }
+}
+
 // ─── Top-level orchestrator ──────────────────────────────────────────────────
 async function run() {
   console.log("\n" + "=".repeat(62));
@@ -332,6 +367,7 @@ async function run() {
 
   await testRoomEvents(roomS);
   await testDmEvents(dmS);
+  await testNotificationEvents();
 
   roomS?.disconnect();
   dmS?.disconnect();

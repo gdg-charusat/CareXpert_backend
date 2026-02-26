@@ -43,6 +43,8 @@ const io = new Server(httpServer, {
   },
 });
 
+app.set("io", io);
+
 setupChatSocket(io).catch((err) => {
   console.error("Failed to initialise chat socket:", err);
   process.exit(1);

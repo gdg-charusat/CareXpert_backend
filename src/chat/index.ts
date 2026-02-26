@@ -89,4 +89,31 @@ export async function setupChatSocket(io: Server): Promise<void> {
       );
     });
   });
+
+  // ── /notifications Namespace ─────────────────────────────────────────────
+  const notifNsp = io.of("/notifications");
+  notifNsp.use(socketAuthMiddleware);
+
+  notifNsp.on("connection", (socket) => {
+    // Join a room named by userId for targeted notification delivery
+    const userId = socket.data.userId;
+    if (userId) {
+      socket.join(userId);
+    }
+    // Optionally log connection
+    // console.log(`[Notifications] connected socket=${socket.id} userId=${userId}`);
+    socket.on("disconnect", () => {
+      // console.log(`[Notifications] disconnected socket=${socket.id} userId=${userId}`);
+    });
+  });
+}
+
+/**
+ * Emits a new_notification event to a specific user via the /notifications namespace.
+ * @param io - The Socket.IO server instance
+ * @param userId - The userId to notify
+ * @param payload - The notification payload (object)
+ */
+export function emitNotificationToUser(io: Server, userId: string, payload: any) {
+  io.of("/notifications").to(userId).emit("new_notification", payload);
 }
