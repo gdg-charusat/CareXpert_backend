@@ -36,6 +36,12 @@ export const isAuthenticated = async (req: any, res: any, next: any) => {
               id: true,
             },
           },
+          admin: {
+            select: {
+              id: true,
+              permissions: true,
+            },
+          },
         },
       });
 
@@ -56,6 +62,7 @@ export const isAuthenticated = async (req: any, res: any, next: any) => {
         ...user,
         patient: user.patient || null,
         doctor: user.doctor || null,
+        admin: user.admin || null,
       };
 
       next();
