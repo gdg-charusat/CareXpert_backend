@@ -11,6 +11,7 @@ import {
   notFoundHandler,
   errorHandler,
 } from "./middlewares/errorHandler.middleware";
+import { globalRateLimiter } from "./middlewares/rateLimiter.middleware";
 
 dotenv.config();
 
