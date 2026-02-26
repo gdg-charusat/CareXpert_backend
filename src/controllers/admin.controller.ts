@@ -339,6 +339,8 @@ const changeUserRole = async (req: Request, res: Response): Promise<void> => {
                             canManageDoctors: true,
                             canManagePatients: true,
                             canViewAnalytics: true,
+                            // grant report viewing by default for new admins
+                            canViewReports: true,
                             canManageSystem: true,
                         },
                     },

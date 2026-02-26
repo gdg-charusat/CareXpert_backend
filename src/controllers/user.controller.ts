@@ -10,7 +10,6 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
 import { isValidUUID, validatePassword } from "../utils/helper";
-import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
@@ -418,6 +417,8 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // allow report access by default for new admin accounts
+            canViewReports: true,
             canManageSystem: true,
           },
         },

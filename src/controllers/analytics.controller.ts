@@ -12,6 +12,7 @@ interface AuthRequest extends Request {
     role: Role;
     patient?: { id: string } | null;
     doctor?: { id: string } | null;
+    admin?: { permissions?: Record<string, any> } | null;
   };
 }
 

@@ -151,26 +151,8 @@ export const getReport = async (
   next: NextFunction
 ) => {
   try {
-    const { id } = (req as any).params;
-    const user = (req as any).user;
-
-    if (!user) {
-      throw new AppError("Authentication required", 401);
-    }
-
-    const report = await prisma.report.findUnique({
-      where: { id },
-      include: { patient: true },
-    });
-
-    if (!report) {
-      throw new AppError("Report not found", 404);
-    }
-
-    if (user.role !== "ADMIN" && report.patientId !== user.patient?.id) {
-      throw new AppError("You do not have permission to view this report", 403);
-    }
-
+    // authorization middleware has already verified and attached the report
+    const report = (req as any).report;
     return res.json({
       success: true,
       data: report,
