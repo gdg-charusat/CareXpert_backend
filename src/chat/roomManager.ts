@@ -1,4 +1,4 @@
-import { Server, Socket } from "socket.io";
+import { Namespace, Socket } from "socket.io";
 import { formatMessage } from "./utils";
 import prisma from "../utils/prismClient";
 
@@ -16,7 +16,12 @@ interface RoomMessageData {
   image?: string;
 }
 
-export function handleRoomSocket(io: Server, socket: Socket) {
+/**
+ * Registers room-based chat event handlers on the /chat/room namespace.
+ * @param nsp  - The /chat/room Namespace instance
+ * @param socket - The individual authenticated socket connection
+ */
+export function handleRoomSocket(nsp: Namespace, socket: Socket) {
   socket.on(
     "joinRoom",
     async (message: { event: string; data: JoinRoomData }) => {

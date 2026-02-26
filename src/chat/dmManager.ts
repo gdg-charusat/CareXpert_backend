@@ -1,4 +1,4 @@
-import { Server, Socket } from "socket.io";
+import { Namespace, Socket } from "socket.io";
 import { formatMessage } from "./utils";
 import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
@@ -12,7 +12,12 @@ interface DmMessageData {
   image?: string;
 }
 
-export function handleDmSocket(io: Server, socket: Socket) {
+/**
+ * Registers direct-message event handlers on the /chat/dm namespace.
+ * @param nsp  - The /chat/dm Namespace instance
+ * @param socket - The individual authenticated socket connection
+ */
+export function handleDmSocket(nsp: Namespace, socket: Socket) {
   socket.on("joinDmRoom", async (roomId: string) => {
     try {
       
@@ -61,7 +66,7 @@ export function handleDmSocket(io: Server, socket: Socket) {
           messageType: image ? "IMAGE" : "TEXT",
         });
 
-        io.to(roomId).emit("message", formattedMessage);
+        nsp.to(roomId).emit("message", formattedMessage);
 
         const savedMessage = await prisma.chatMessage.create({
           data: {

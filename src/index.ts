@@ -3,10 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import routes from "./Routes/index";
 import cookieParser from "cookie-parser";
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 import http from "http";
-import { handleRoomSocket } from "./chat/roomManager";
-import { handleDmSocket } from "./chat/dmManager";
+import { setupChatSocket } from "./chat/index";
 import { notFoundHandler, errorHandler } from "./middlewares/errorHandler.middleware";
 import { globalRateLimiter } from "./middlewares/rateLimiter.middleware";
 
@@ -45,26 +44,10 @@ const io = new Server(httpServer, {
   
 });
 
-export function setupChatSocket(io: Server) {
-  io.on("connection", (socket: Socket) => {
-    console.log(`User connected: ${socket.id}`);
-
-    socket.emit("test_message", { data: "Connection successful!" });
-
-    try {
-      handleRoomSocket(io, socket);
-      handleDmSocket(io, socket);
-    } catch (error) {
-      console.error("Error setting up socket handlers:", error);
-    }
-
-    socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
-    });
-  });
-}
-
-setupChatSocket(io);
+setupChatSocket(io).catch((err) => {
+  console.error("Failed to initialise chat socket:", err);
+  process.exit(1);
+});
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
