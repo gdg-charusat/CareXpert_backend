@@ -17,8 +17,25 @@ import cacheService from "../utils/cacheService";
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { specialty, location } = req.query;
 
+  const specialtyQuery =
+    typeof specialty === "string" ? specialty.trim() : "";
+  const locationQuery =
+    typeof location === "string" ? location.trim() : "";
+
+  // Input validation
+  if (!specialtyQuery && !locationQuery) {
+    res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "At least one search parameter (specialty or location) is required"
+        )
+      );
+    return;
+  }
   try {
-    const cacheKey = `doctors:${specialty || 'all'}:${location || 'all'}`;
+    const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
