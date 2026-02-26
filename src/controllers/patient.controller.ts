@@ -15,10 +15,10 @@ import fs from "fs";
 import cacheService from "../utils/cacheService";
 
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
-  const { specialty, location } = req.query;
+  const { specialty: specialtyQuery, location: locationQuery } = req.query;
 
   try {
-    const cacheKey = `doctors:${specialty || 'all'}:${location || 'all'}`;
+    const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
@@ -27,15 +27,15 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
 
     const doctors = await prisma.doctor.findMany({
       where: {
-        ...(specialty && {
+        ...(specialtyQuery && {
           specialty: {
-            contains: specialty as string,
+            contains: specialtyQuery as string,
             mode: "insensitive"
           }
         }),
-        ...(location && {
+        ...(locationQuery && {
           clinicLocation: {
-            contains: location as string,
+            contains: locationQuery as string,
             mode: "insensitive"
           }
         })
@@ -142,7 +142,6 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
 
     return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
-    return res.status(400).json(new ApiError(400, "Internal Server Error", [error]));
     return next(error);
   }
 };

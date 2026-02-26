@@ -641,7 +641,7 @@ const userProfile = async (req: Request, res: Response): Promise<any> => {
     const { id } = (req as any).params;
 
     if (!id || !isValidUUID(id)) {
-      return res.status(400).json(new ApiError(400, "patient id no valid"));
+      return res.status(400).json(new ApiError(400, "patient id not valid"));
     }
 
     const patient = await prisma.patient.findUnique({
