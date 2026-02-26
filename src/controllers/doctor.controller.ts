@@ -147,35 +147,35 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
           },
         });
       }
-    }
-    if (status === "COMPLETED" && prescriptionText) {
-      const prescription = await prisma.prescription.create({
-        data: {
-          doctorId: appointment.doctorId,
-          patientId: appointment.patientId,
-          prescriptionText: prescriptionText,
-        },
-      });
-      await prisma.patientHistory.create({
-        data: {
-          patientId: appointment.patientId,
-          doctorId: appointment.doctorId,
-          prescriptionId: prescription.id,
-          appointmentId: appointment.id,
-          notes: notes || "",
-          dateRecorded: new Date(),
-        },
-      });
+	    }
+	    if (status === "COMPLETED" && prescriptionText) {
+	      const prescription = await prisma.prescription.create({
+	        data: {
+	          doctorId: appointment.doctorId,
+	          patientId: appointment.patientId,
+	          prescriptionText: prescriptionText,
+	        },
+	      });
+	      await prisma.patientHistory.create({
+	        data: {
+	          patientId: appointment.patientId,
+	          doctorId: appointment.doctorId,
+	          prescriptionId: prescription.id,
+	          appointmentId: appointment.id,
+	          notes: notes || "",
+	          dateRecorded: new Date(),
+	        },
+	      });
 
-      sendEmail({
-        to: (appointment as any).patient.user.email,
-        subject: "New Prescription Available - CareXpert",
-        html: prescriptionTemplate(
-          (appointment as any).doctor.user.name,
-          new Date().toLocaleDateString()
-        ),
-      }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
-    }
+	      sendEmail({
+	        to: (appointment as any).patient.user.email,
+	        subject: "New Prescription Available - CareXpert",
+	        html: prescriptionTemplate(
+	          (appointment as any).doctor.user.name,
+	          new Date().toLocaleDateString()
+	        ),
+	      }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
+	    }
     res
       .status(200)
       .json(
@@ -1092,30 +1092,29 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
       },
     });
 
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        prescriptionId: prescription.id,
-        notes: notes || undefined,
-      },
+	    const updatedAppointment = await prisma.appointment.update({
+	      where: { id: appointment.id },
+	      data: {
+	        prescriptionId: prescription.id,
+	        notes: notes || undefined,
+	      },
       select: {
         id: true,
         patient: {
           select: {
             userId: true
           }
-        }
-      }
-    });
-
-    const notification = await prisma.notification.create({
-      data: {
-        userId: updatedAppointment.patient.userId,
-        type: "PRESCRIPTION_ADDED",
-        title: "Prescription Available",
-        message: "Your doctor has added a prescription for your appointment.",
-        appointmentId: appointment.id,
-      },
+	        }
+	      }
+	    });
+	    const notification = await prisma.notification.create({
+	      data: {
+	        userId: updatedAppointment.patient.userId,
+	        type: "PRESCRIPTION_ADDED",
+	        title: "Prescription Available",
+	        message: "Your doctor has added a prescription for your appointment.",
+	        appointmentId: appointment.id,
+	      },
     });
 
     const io = req.app.get("io");
