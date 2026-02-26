@@ -10,6 +10,7 @@ import {
   Role,
   AppointmentType,
 } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import cacheService from "../utils/cacheService";
@@ -182,7 +183,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       throw new AppError("Time slot id is required", 400);
     }
 
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 
       const timeSlot = await tx.timeSlot.findUnique({
         where: { id: timeSlotId },

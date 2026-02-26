@@ -69,7 +69,13 @@ export const loginRateLimiter = rateLimit({
   legacyHeaders: false,
   validate: false,
   keyGenerator: (req: Request) => {
-    return req.body.email || req.ip || 'unknown';
+    const identifier =
+      (req as any)?.body?.email ||
+      (req as any)?.body?.data ||
+      req.ip ||
+      "unknown";
+
+    return typeof identifier === "string" ? identifier : String(identifier);
   },
   handler: (req: Request, res: Response) => {
     const retryAfter = Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000);

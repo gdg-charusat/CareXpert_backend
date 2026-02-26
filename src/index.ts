@@ -7,7 +7,6 @@ import { Server } from "socket.io";
 import http from "http";
 import { setupChatSocket } from "./chat/index";
 import { notFoundHandler, errorHandler } from "./middlewares/errorHandler.middleware";
-import { globalRateLimiter } from "./middlewares/rateLimiter.middleware";
 
 dotenv.config();
 
@@ -31,8 +30,6 @@ app.get("/health", (req, res) => {
     uptime: process.uptime(),
   });
 });
-
-app.use("/api", globalRateLimiter);
 
 // Use Routes
 app.use("/api", routes);
@@ -62,4 +59,3 @@ setupChatSocket(io).catch((err) => {
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
-
