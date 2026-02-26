@@ -1,35 +1,60 @@
-import { Server, Socket } from "socket.io";
+import { Namespace, Socket } from "socket.io";
 import { formatMessage } from "./utils";
 import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
 
+interface JoinDmRoomData {
+  // Mirrors the JoinRoomData envelope used in roomManager for consistency.
+  roomId: string;
+}
+
 interface DmMessageData {
   roomId: string;
-  senderId: string;
+  // senderId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   receiverId: string;
-  username: string;
   text: string;
   image?: string;
 }
 
-export function handleDmSocket(io: Server, socket: Socket) {
-  socket.on("joinDmRoom", async (roomId: string) => {
-    try {
-      
-      socket.join(roomId);
+/**
+ * Registers direct-message event handlers on the /chat/dm namespace.
+ * @param _nsp  - The /chat/dm Namespace instance (currently unused; retained for API consistency)
+ * @param socket - The individual authenticated socket connection
+ */
+export function handleDmSocket(_nsp: Namespace, socket: Socket) {
+  socket.on(
+    "joinDmRoom",
+    async (message: { event: string; data: JoinDmRoomData }) => {
+      try {
+        const { roomId } = message.data;
 
-    } catch (error) {
-      console.error("Error in joinDmRoom:", error);
-      socket.emit("error", "Failed to join DM room");
+        socket.join(roomId);
+
+        // Acknowledge the join back to the connecting socket (mirrors joinRoom behaviour).
+        // No broadcast to the DM partner — joining a private conversation is silent to others.
+        socket.emit("message", {
+          username: "CareXpert Bot",
+          text: `Connected to DM room.`,
+          roomId,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Error in joinDmRoom:", error);
+        socket.emit("error", "Failed to join DM room");
+      }
     }
-  });
+  );
 
   socket.on(
     "dmMessage",
     async (message: { event: string; data: DmMessageData }) => {
       try {
-        const { roomId, senderId, receiverId, username, text, image } =
-          message.data;
+        const { roomId, receiverId, text, image } = message.data;
+        // Use server-verified identity — never trust client-supplied senderId/username
+        const senderId = socket.data.userId as string;
+        const username = socket.data.name as string;
+
         let messageData: any = {
           roomId,
           senderId,
@@ -53,17 +78,12 @@ export function handleDmSocket(io: Server, socket: Socket) {
         }
 
         const formattedMessage = formatMessage(messageData);
-        console.log("DM Message Data:", {
-          senderId,
-          receiverId,
-          roomId,
-          message: text,
-          messageType: image ? "IMAGE" : "TEXT",
-        });
 
-        io.to(roomId).emit("message", formattedMessage);
+        // Exclude the sender: they already have the message locally.
+        // Mirrors the socket.to() pattern used in roomMessage.
+        socket.to(roomId).emit("message", formattedMessage);
 
-        const savedMessage = await prisma.chatMessage.create({
+        await prisma.chatMessage.create({
           data: {
             senderId: senderId,
             receiverId: receiverId,
@@ -73,8 +93,6 @@ export function handleDmSocket(io: Server, socket: Socket) {
             imageUrl: image ? formattedMessage.imageUrl : null,
           },
         });
-
-        console.log("DM Message saved successfully:", savedMessage.id);
       } catch (error) {
         console.error("Error in dmMessage:", error);
         socket.emit("error", "Failed to send DM message");
