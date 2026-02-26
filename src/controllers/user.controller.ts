@@ -363,6 +363,21 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
       .json(new ApiError(400, passwordValidation.message || "Invalid password"));
   }
 
+  // Check if any admin exists for first-admin bootstrap logic
+  const adminCount = await prisma.admin.count();
+  const isFirstAdmin = adminCount === 0;
+
+  // Secret bypass for initial seeding (only if no admins exist)
+  const adminSecret = req.header("X-Admin-Secret");
+  const isSecretValid = isFirstAdmin && adminSecret && adminSecret === process.env.ADMIN_SIGNUP_SECRET;
+
+  // If not using secret (or secret is invalid/not allowed), the request must be authenticated by an existing admin
+  if (!isSecretValid) {
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res.status(403).json(new ApiError(403, isFirstAdmin ? "Valid Admin Secret required for first admin" : "Unauthorized: Admin access required"));
+    }
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -979,6 +994,7 @@ const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
       specialty: member.doctor?.specialty || null,
       joinedAt: member.createdAt,
     }));
+
 
     res.status(200).json(
       new ApiResponse(

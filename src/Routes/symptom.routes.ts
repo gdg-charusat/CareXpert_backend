@@ -5,14 +5,17 @@ import {
   deleteSymptom,
 } from "../controllers/symptom.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
 import { isPatient } from "../utils/helper";
 
 const router = express.Router();
 
-router.post("/log", isAuthenticated, isPatient, logSymptom);
+router.use(isAuthenticated, globalRateLimiter, isPatient);
 
-router.get("/history", isAuthenticated, isPatient, getSymptomHistory);
+router.post("/log", logSymptom);
 
-router.delete("/:symptomId", isAuthenticated, isPatient, deleteSymptom);
+router.get("/history", getSymptomHistory);
+
+router.delete("/:symptomId", deleteSymptom);
 
 export default router;

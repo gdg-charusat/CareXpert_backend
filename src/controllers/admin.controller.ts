@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
@@ -22,7 +23,7 @@ const listAllUsers = async (req: Request, res: Response): Promise<void> => {
         }
 
         const where: any = {
-            deletedAt: null, 
+            deletedAt: null,
         };
 
         if (roleFilter) {
@@ -302,8 +303,8 @@ const changeUserRole = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const updatedUser = await prisma.$transaction(async (tx) => {
-            
+        const updatedUser = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+
             const updated = await tx.user.update({
                 where: { id: userId },
                 data: { role: role as Role },

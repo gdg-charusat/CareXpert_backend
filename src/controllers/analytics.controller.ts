@@ -73,7 +73,7 @@ export const getDoctorVisitFrequency = async (req: AuthRequest, res: Response) =
 
     const doctorStats: Record<string, { doctorId: string; name: string; specialty: string; visitCount: number }> = {};
 
-    appointments.forEach((appt) => {
+    appointments.forEach((appt: any) => {
       const docId = appt.doctorId;
       if (!doctorStats[docId]) {
         doctorStats[docId] = {
@@ -130,7 +130,7 @@ export const getReportTrends = async (req: AuthRequest, res: Response) => {
 
 export const getSymptomPatterns = async (req: AuthRequest, res: Response) => {
   try {
-    
+
     const userId = req.user?.id;
 
     if (!userId) {
@@ -149,9 +149,9 @@ export const getSymptomPatterns = async (req: AuthRequest, res: Response) => {
     });
 
     const causeFrequency: Record<string, number> = {};
-    aiChats.forEach((chat) => {
-      chat.probableCauses.forEach((cause) => {
-        
+    aiChats.forEach((chat: any) => {
+      chat.probableCauses.forEach((cause: any) => {
+
         const normalized = cause.trim().toLowerCase();
         causeFrequency[normalized] = (causeFrequency[normalized] || 0) + 1;
       });
