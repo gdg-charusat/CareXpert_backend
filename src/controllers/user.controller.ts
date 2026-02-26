@@ -341,7 +341,7 @@ const logout = async (req: any, res: any) => {
   }
 };
 
-const doctorProfile = async (req: Request, res: Response) => {
+const doctorProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -370,7 +370,7 @@ const doctorProfile = async (req: Request, res: Response) => {
   }
 };
 
-const userProfile = async (req: Request, res: Response) => {
+const userProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -401,7 +401,7 @@ const userProfile = async (req: Request, res: Response) => {
   }
 };
 
-const updatePatientProfile = async (req: any, res: Response) => {
+const updatePatientProfile = async (req: any, res: Response): Promise<any> => {
   try {
     const id = (req as any).user?.id;
     const { name } = req.body;
@@ -557,7 +557,7 @@ const getAuthenticatedUserProfile = async (
 };
 
 // Notifications API
-const getNotifications = async (req: any, res: Response) => {
+const getNotifications = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { page = 1, limit = 10 } = req.query;
@@ -590,7 +590,7 @@ const getNotifications = async (req: any, res: Response) => {
   }
 };
 
-const getUnreadNotificationCount = async (req: any, res: Response) => {
+const getUnreadNotificationCount = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -610,7 +610,7 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
   }
 };
 
-const markNotificationAsRead = async (req: any, res: Response) => {
+const markNotificationAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { notificationId } = req.params;
@@ -637,7 +637,7 @@ const markNotificationAsRead = async (req: any, res: Response) => {
   }
 };
 
-const markAllNotificationsAsRead = async (req: any, res: Response) => {
+const markAllNotificationsAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -659,7 +659,7 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
 };
 
 // Community API
-const getCommunityMembers = async (req: any, res: Response) => {
+const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
   try {
     const { roomId } = req.params;
 
@@ -717,7 +717,7 @@ const getCommunityMembers = async (req: any, res: Response) => {
   }
 };
 
-const joinCommunity = async (req: any, res: Response) => {
+const joinCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;
@@ -765,7 +765,7 @@ const joinCommunity = async (req: any, res: Response) => {
   }
 };
 
-const leaveCommunity = async (req: any, res: Response) => {
+const leaveCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;

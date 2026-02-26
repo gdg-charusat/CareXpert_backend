@@ -14,7 +14,7 @@ import doc from "pdfkit";
 const viewDoctorAppointment = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const userId = (req as any).user?.id;
   const { status, upcoming } = req.query; // status=PENDING/COMPLETED/CANCELLED, upcoming=true
 
@@ -162,7 +162,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
-const addTimeslot = async (req: Request, res: Response) => {
+const addTimeslot = async (req: Request, res: Response): Promise<any> => {
   const { startTime, endTime } = req.body;
   if (!startTime || !endTime) {
     res.status(400).json(new ApiError(400, "Start and end time required"));
@@ -236,7 +236,7 @@ const addTimeslot = async (req: Request, res: Response) => {
   }
 };
 
-const generateBulkTimeSlots = async (req: Request, res: Response) => {
+const generateBulkTimeSlots = async (req: Request, res: Response): Promise<any> => {
   const { startDate, endDate, startTime, endTime, durationInMinutes } = req.body;
 
   if (!startDate || !endDate || !startTime || !endTime || !durationInMinutes) {
@@ -408,7 +408,7 @@ const cancelAppointment = async (req: Request, res: any) => {
   }
 };
 
-const viewTimeslots = async (req: Request, res: Response) => {
+const viewTimeslots = async (req: Request, res: Response): Promise<any> => {
   const { status, startTime, endTime } = req.query; //status = AVAILABLE,BOOKED,CANCELLED
   const userId = (req as any).user?.id;
 

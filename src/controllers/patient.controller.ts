@@ -12,7 +12,7 @@ import {
 import PDFDocument from "pdfkit";
 import fs from "fs";
 
-const searchDoctors = async (req: any, res: Response) => {
+const searchDoctors = async (req: any, res: Response): Promise<any> => {
   const { specialty, location } = req.query;
 
   // Input validation
@@ -31,24 +31,18 @@ const searchDoctors = async (req: any, res: Response) => {
   try {
     const doctors = await prisma.doctor.findMany({
       where: {
-        AND: [
-          specialty
-            ? {
-              specialty: {
-                contains: specialty as string,
-                mode: "insensitive", // Case-insensitive search
-              },
-            }
-            : {},
-          location
-            ? {
-              clinicLocation: {
-                contains: location as string,
-                mode: "insensitive", // Case-insensitive search
-              },
-            }
-            : {},
-        ],
+        ...(specialty && {
+          specialty: {
+            contains: specialty as string,
+            mode: "insensitive"
+          }
+        }),
+        ...(location && {
+          clinicLocation: {
+            contains: location as string,
+            mode: "insensitive"
+          }
+        })
       },
       include: {
         user: {
@@ -68,7 +62,7 @@ const searchDoctors = async (req: any, res: Response) => {
   }
 };
 
-const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
+const availableTimeSlots = async (req: any, res: Response): Promise<any> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
 
