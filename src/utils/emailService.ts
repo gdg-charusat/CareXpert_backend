@@ -1,9 +1,11 @@
 import nodemailer from "nodemailer";
 import { ApiError } from "./ApiError";
+import { randomBytes } from "crypto";
 
 export const generateVerificationToken = (): string => {
-  return Math.random().toString(36).substring(2, 15) +
-         Math.random().toString(36).substring(2, 15);
+  // Preserve a short, URL-safe, string token (previously ~26 chars).
+  // 13 bytes => 26 hex characters.
+  return randomBytes(13).toString("hex");
 };
 
 const createTransporter = () => {
