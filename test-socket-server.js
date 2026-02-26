@@ -157,16 +157,16 @@ const TIMEOUT_MS = 4000;
 let passed = 0;
 let failed = 0;
 
-function ok(label)        { console.log(`  ✅  PASS  ${label}`); passed++; }
-function no(label, why)   { console.error(`  ❌  FAIL  ${label}\n            ${why}`); failed++; }
+function ok(label)      { console.log(`  ✅  PASS  ${label}`); passed++; }
+function no(label, why) { console.error(`  ❌  FAIL  ${label}\n            ${why}`); failed++; }
 
 function connect(namespace, token, useHeader = false) {
   return new Promise((resolve, reject) => {
     const opts = {
-      transports: ["websocket"],
-      auth:        useHeader ? {} : (token ? { token } : {}),
+      transports:   ["websocket"],
+      auth:         useHeader ? {} : (token ? { token } : {}),
       extraHeaders: useHeader && token ? { authorization: `Bearer ${token}` } : {},
-      timeout:     TIMEOUT_MS,
+      timeout:      TIMEOUT_MS,
     };
     const s = socketClient(`${BASE_URL}${namespace}`, opts);
     const cleanup = () => { s.off("connect"); s.off("connect_error"); };
@@ -182,136 +182,160 @@ function waitFor(socket, event, ms = TIMEOUT_MS) {
   });
 }
 
-async function run() {
-  console.log("\n" + "=".repeat(62));
-  console.log("  CareXpert Socket.IO  –  Namespace + Auth Test Suite");
-  console.log(`  Server : ${BASE_URL}  (in-process test server)`);
-  console.log("=".repeat(62));
-
-  // ── GROUP 1 : No token ──────────────────────────────────────────────────
+// ─── Domain suite 1: Authentication rejection scenarios ──────────────────────
+// Groups 1-4: every combination of missing / bad / ghost / stale token must be
+// rejected with a descriptive "Authentication error: …" message on both namespaces.
+async function testAuthRejections() {
   console.log("\n[Group 1] Reject connections with NO token\n");
   for (const ns of ["/chat/room", "/chat/dm"]) {
     try   { const s = await connect(ns, null); s.disconnect(); no(`${ns} → rejected (no token)`, "Connected unexpectedly"); }
     catch (e) { e.includes("Authentication") ? ok(`${ns} → rejected: "${e}"`) : no(`${ns} → rejected (no token)`, e); }
   }
 
-  // ── GROUP 2 : Garbage token ─────────────────────────────────────────────
   console.log("\n[Group 2] Reject connections with INVALID (garbage) token\n");
   for (const ns of ["/chat/room", "/chat/dm"]) {
     try   { const s = await connect(ns, "garbage.token.value"); s.disconnect(); no(`${ns} → rejected (invalid token)`, "Connected unexpectedly"); }
     catch (e) { e.includes("Authentication") ? ok(`${ns} → rejected: "${e}"`) : no(`${ns} → rejected (invalid token)`, e); }
   }
 
-  // ── GROUP 3 : Ghost user token ──────────────────────────────────────────
   console.log("\n[Group 3] Reject connections for non-existent / deleted user\n");
   for (const ns of ["/chat/room", "/chat/dm"]) {
     try   { const s = await connect(ns, GHOST_TOKEN); s.disconnect(); no(`${ns} → rejected (ghost user)`, "Connected unexpectedly"); }
     catch (e) { e.includes("Authentication") ? ok(`${ns} → rejected: "${e}"`) : no(`${ns} → rejected (ghost user)`, e); }
   }
 
-  // ── GROUP 4 : Stale tokenVersion ─────────────────────────────────────────
   console.log("\n[Group 4] Reject connections with invalidated (stale) token\n");
   for (const ns of ["/chat/room", "/chat/dm"]) {
     try   { const s = await connect(ns, STALE_TOKEN); s.disconnect(); no(`${ns} → rejected (stale token)`, "Connected unexpectedly"); }
     catch (e) { e.includes("Authentication") ? ok(`${ns} → rejected: "${e}"`) : no(`${ns} → rejected (stale token)`, e); }
   }
+}
 
-  // ── GROUP 5 : Valid token → accepted ────────────────────────────────────
-  console.log("\n[Group 5] ACCEPT connections with VALID token\n");
+// ─── Domain suite 2: Authentication acceptance scenarios ─────────────────────
+// Groups 5-6: valid token (via auth payload and Authorization header) must be
+// accepted on both namespaces. Returns the two persistent sockets needed by
+// the event suites so they share a single authenticated connection.
+async function testAuthAcceptance() {
   let roomS, dmS;
+
+  console.log("\n[Group 5] ACCEPT connections with VALID token\n");
   try   { roomS = await connect("/chat/room", VALID_TOKEN); ok(`/chat/room → accepted  id=${roomS.id}`); }
   catch (e) { no("/chat/room → accepted (valid token)", e); }
 
   try   { dmS = await connect("/chat/dm", VALID_TOKEN); ok(`/chat/dm   → accepted  id=${dmS.id}`); }
   catch (e) { no("/chat/dm → accepted (valid token)", e); }
 
-  // ── GROUP 6 : Valid token via Authorization header ───────────────────────
   console.log("\n[Group 6] ACCEPT connections with valid token passed as Authorization HEADER\n");
   let hRoomS, hDmS;
   try   { hRoomS = await connect("/chat/room", VALID_TOKEN, true); ok(`/chat/room → accepted via header  id=${hRoomS.id}`); }
   catch (e) { no("/chat/room → accepted (header token)", e); }
-  try   { hDmS = await connect("/chat/dm", VALID_TOKEN, true); ok(`/chat/dm   → accepted via header  id=${hDmS.id}`); }
+  try   { hDmS = await connect("/chat/dm",   VALID_TOKEN, true); ok(`/chat/dm   → accepted via header  id=${hDmS.id}`); }
   catch (e) { no("/chat/dm → accepted (header token)", e); }
-  hRoomS?.disconnect(); hDmS?.disconnect();
+  hRoomS?.disconnect();
+  hDmS?.disconnect();
 
-  // ── GROUP 7 : /chat/room events ─────────────────────────────────────────
+  return { roomS, dmS };
+}
+
+// ─── Domain suite 3: /chat/room event handling ───────────────────────────────
+// Group 7: joinRoom welcome ack and roomMessage broadcast to a second socket.
+async function testRoomEvents(roomS) {
   console.log("\n[Group 7] /chat/room  –  joinRoom and roomMessage events\n");
 
-  if (roomS?.connected) {
-    // welcome message
-    try {
-      const p = waitFor(roomS, "message");
-      roomS.emit("joinRoom", { event: "joinRoom", data: { userId: MOCK_USER.id, username: "TestUser", roomId: "room-alpha" } });
-      const m = await p;
-      m?.text?.includes("Welcome") ? ok(`joinRoom → welcome: "${m.text}"`) : no("joinRoom → welcome message", JSON.stringify(m));
-    } catch (e) { no("joinRoom → welcome message", e.message); }
-
-    // broadcast to second socket
-    let roomS2;
-    try {
-      roomS2 = await connect("/chat/room", VALID_TOKEN);
-      roomS2.emit("joinRoom", { event: "joinRoom", data: { userId: MOCK_USER.id, username: "TestUser2", roomId: "room-alpha" } });
-      await new Promise((r) => setTimeout(r, 300));    // settle
-
-      // consume the welcome on roomS2
-      roomS2.once("message", () => {});
-
-      const broadcast = waitFor(roomS2, "message");
-      roomS.emit("roomMessage", { event: "roomMessage", data: { senderId: MOCK_USER.id, username: "TestUser", roomId: "room-alpha", text: "Hello namespace!" } });
-      const m = await broadcast;
-      m?.text === "Hello namespace!" ? ok(`roomMessage → broadcast received: "${m.text}"`) : no("roomMessage → broadcast", JSON.stringify(m));
-    } catch (e) { no("roomMessage → broadcast to second socket", e.message); }
-    finally { roomS2?.disconnect(); }
+  if (!roomS?.connected) {
+    no("Group 7", "roomS socket is not connected — skipping room event tests");
+    return;
   }
 
-  // ── GROUP 8 : /chat/dm events ───────────────────────────────────────────
+  try {
+    const p = waitFor(roomS, "message");
+    roomS.emit("joinRoom", { event: "joinRoom", data: { roomId: "room-alpha" } });
+    const m = await p;
+    m?.text?.includes("Welcome")
+      ? ok(`joinRoom → welcome: "${m.text}"`)
+      : no("joinRoom → welcome message", JSON.stringify(m));
+  } catch (e) { no("joinRoom → welcome message", e.message); }
+
+  let roomS2;
+  try {
+    roomS2 = await connect("/chat/room", VALID_TOKEN);
+    roomS2.emit("joinRoom", { event: "joinRoom", data: { roomId: "room-alpha" } });
+    await new Promise((r) => setTimeout(r, 300)); // let join settle
+    roomS2.once("message", () => {});             // consume welcome on roomS2
+
+    const broadcast = waitFor(roomS2, "message");
+    roomS.emit("roomMessage", { event: "roomMessage", data: { roomId: "room-alpha", text: "Hello namespace!" } });
+    const m = await broadcast;
+    m?.text === "Hello namespace!"
+      ? ok(`roomMessage → broadcast received: "${m.text}"`)
+      : no("roomMessage → broadcast", JSON.stringify(m));
+  } catch (e) { no("roomMessage → broadcast to second socket", e.message); }
+  finally { roomS2?.disconnect(); }
+}
+
+// ─── Domain suite 4: /chat/dm event handling ─────────────────────────────────
+// Group 8: joinDmRoom welcome ack, dmMessage delivery, and sender-exclusion.
+async function testDmEvents(dmS) {
   console.log("\n[Group 8] /chat/dm  –  joinDmRoom and dmMessage events\n");
 
-  if (dmS?.connected) {
-    const DM_ROOM = "dm-alpha-beta";
-
-    // joinDmRoom: verify the welcome ack is received (mirrors joinRoom behaviour)
-    try {
-      const ackPromise = waitFor(dmS, "message");
-      dmS.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
-      const ack = await ackPromise;
-      ack?.text?.includes("Connected") ?
-        ok(`joinDmRoom "${DM_ROOM}" → welcome ack received: "${ack.text}"`) :
-        no("joinDmRoom → welcome ack", JSON.stringify(ack));
-    } catch (e) { no("joinDmRoom → welcome ack", e.message); }
-
-    // dmMessage: verify delivery to second socket; verify sender is NOT echoed
-    let dmS2;
-    try {
-      dmS2 = await connect("/chat/dm", VALID_TOKEN);
-      dmS2.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
-      await waitFor(dmS2, "message");  // consume the join ack on dmS2
-
-      // Track whether the sender receives an unwanted echo
-      let senderEcho = null;
-      dmS.once("message", (m) => (senderEcho = m));
-
-      const msgPromise = waitFor(dmS2, "message");
-      dmS.emit("dmMessage", { event: "dmMessage", data: { roomId: DM_ROOM, receiverId: "user-receiver-002", text: "DM namespace test!" } });
-      const m = await msgPromise;
-
-      m?.text === "DM namespace test!" ?
-        ok(`dmMessage → received on second socket: "${m.text}"`) :
-        no("dmMessage → received", JSON.stringify(m));
-
-      // Confirm sender exclusion (give 200 ms for any accidental echo to arrive)
-      await new Promise((r) => setTimeout(r, 200));
-      senderEcho === null ?
-        ok("dmMessage → sender is NOT echoed (socket.to behaviour)") :
-        no("dmMessage → sender exclusion", `sender received echo: ${JSON.stringify(senderEcho)}`);
-    } catch (e) { no("dmMessage → received on second socket", e.message); }
-    finally { dmS2?.disconnect(); }
+  if (!dmS?.connected) {
+    no("Group 8", "dmS socket is not connected — skipping DM event tests");
+    return;
   }
+
+  const DM_ROOM = "dm-alpha-beta";
+
+  try {
+    const ackPromise = waitFor(dmS, "message");
+    dmS.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
+    const ack = await ackPromise;
+    ack?.text?.includes("Connected")
+      ? ok(`joinDmRoom "${DM_ROOM}" → welcome ack received: "${ack.text}"`)
+      : no("joinDmRoom → welcome ack", JSON.stringify(ack));
+  } catch (e) { no("joinDmRoom → welcome ack", e.message); }
+
+  let dmS2;
+  try {
+    dmS2 = await connect("/chat/dm", VALID_TOKEN);
+    dmS2.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
+    await waitFor(dmS2, "message"); // consume join ack on dmS2
+
+    let senderEcho = null;
+    dmS.once("message", (m) => (senderEcho = m));
+
+    const msgPromise = waitFor(dmS2, "message");
+    dmS.emit("dmMessage", { event: "dmMessage", data: { roomId: DM_ROOM, receiverId: "user-receiver-002", text: "DM namespace test!" } });
+    const m = await msgPromise;
+
+    m?.text === "DM namespace test!"
+      ? ok(`dmMessage → received on second socket: "${m.text}"`)
+      : no("dmMessage → received", JSON.stringify(m));
+
+    await new Promise((r) => setTimeout(r, 200)); // wait for any accidental echo
+    senderEcho === null
+      ? ok("dmMessage → sender is NOT echoed (socket.to behaviour)")
+      : no("dmMessage → sender exclusion", `sender received echo: ${JSON.stringify(senderEcho)}`);
+  } catch (e) { no("dmMessage → received on second socket", e.message); }
+  finally { dmS2?.disconnect(); }
+}
+
+// ─── Top-level orchestrator ──────────────────────────────────────────────────
+async function run() {
+  console.log("\n" + "=".repeat(62));
+  console.log("  CareXpert Socket.IO  –  Namespace + Auth Test Suite");
+  console.log(`  Server : ${BASE_URL}  (in-process test server)`);
+  console.log("=".repeat(62));
+
+  await testAuthRejections();
+
+  const { roomS, dmS } = await testAuthAcceptance();
+
+  await testRoomEvents(roomS);
+  await testDmEvents(dmS);
 
   roomS?.disconnect();
   dmS?.disconnect();
 
-  // ── Summary ──────────────────────────────────────────────────────────────
   console.log("\n" + "=".repeat(62));
   const allPassed = failed === 0;
   console.log(` Results:  ${passed} passed  /  ${failed} failed  — ${allPassed ? "ALL TESTS PASSED ✅" : "SOME TESTS FAILED ❌"}`);
