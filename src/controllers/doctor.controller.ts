@@ -14,9 +14,9 @@ import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../u
 const viewDoctorAppointment = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const userId = (req as any).user?.id;
-  const { status, upcoming } = req.query; 
+  const { status, upcoming } = req.query;
 
   const doctor = await prisma.doctor.findUnique({
     where: { userId },
@@ -82,9 +82,9 @@ const viewDoctorAppointment = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
@@ -191,7 +191,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
-const addTimeslot = async (req: Request, res: Response) => {
+const addTimeslot = async (req: Request, res: Response): Promise<any> => {
   const { startTime, endTime } = req.body;
   if (!startTime || !endTime) {
     res.status(400).json(new ApiError(400, "Start and end time required"));
@@ -259,15 +259,15 @@ const addTimeslot = async (req: Request, res: Response) => {
       });
     });
 
-    res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
+    return res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const generateBulkTimeSlots = async (req: Request, res: Response) => {
+const generateBulkTimeSlots = async (req: Request, res: Response): Promise<any> => {
   const { startDate, endDate, startTime, endTime, durationInMinutes } = req.body;
-  
+
   if (!startDate || !endDate || !startTime || !endTime || !durationInMinutes) {
     res.status(400).json(new ApiError(400, "All fields are required: startDate, endDate, startTime, endTime, durationInMinutes"));
     return;
@@ -292,7 +292,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json(new ApiError(400, "Invalid date format"));
       return;
@@ -317,7 +317,6 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
     while (currentDate <= end) {
       const dateStr = currentDate.toISOString().split('T')[0];
-      
       let currentMinutes = startHour * 60 + startMinute;
       const endMinutes = endHour * 60 + endMinute;
 
@@ -330,7 +329,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
         const slotStart = new Date(dateStr);
         slotStart.setHours(slotStartHour, slotStartMinute, 0, 0);
-        
+
         const slotEnd = new Date(dateStr);
         slotEnd.setHours(slotEndHour, slotEndMinute, 0, 0);
 
@@ -351,7 +350,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
             reason: "Overlaps with existing slot"
           });
         } else {
-          
+
           const timeSlot = await prisma.timeSlot.create({
             data: {
               doctorId: doctor.id,
@@ -376,7 +375,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
       skippedSlots
     }));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -432,8 +431,8 @@ const cancelAppointment = async (req: Request, res: any) => {
   }
 };
 
-const viewTimeslots = async (req: Request, res: Response) => {
-  const { status, startTime, endTime } = req.query; 
+const viewTimeslots = async (req: Request, res: Response): Promise<any> => {
+  const { status, startTime, endTime } = req.query; //status = AVAILABLE,BOOKED,CANCELLED
   const userId = (req as any).user?.id;
 
   try {
@@ -471,9 +470,9 @@ const viewTimeslots = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, timeSlots));
+    return res.status(200).json(new ApiResponse(200, timeSlots));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
@@ -559,7 +558,7 @@ const deleteTimeSlot = async (req: Request, res: Response) => {
   try {
     const timeSlot = await prisma.timeSlot.findUnique({
       where: { id: timeSlotID },
-      include: { appointment: true }, 
+      include: { appointment: true },
     });
 
     if (!timeSlot || timeSlot.doctorId !== doctorId) {
@@ -664,7 +663,7 @@ const getAllDoctorAppointments = async (
   res: Response
 ): Promise<void> => {
   const userId = req.user?.id;
-  const { status, upcoming } = req.query; 
+  const { status, upcoming } = req.query;
 
   try {
     const doctor = await prisma.doctor.findUnique({
@@ -854,7 +853,7 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
 
 const respondToAppointmentRequest = async (req: Request, res: Response): Promise<void> => {
   const appointmentId = req.params.appointmentId as string;
-  const { action, rejectionReason, alternativeSlots } = req.body; 
+  const { action, rejectionReason, alternativeSlots } = req.body;
   const userId = (req as any).user?.id;
 
   try {
@@ -905,7 +904,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
     let notification;
 
     if (action === "accept") {
-      
+
       updatedAppointment = await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -931,7 +930,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       }
 
     } else {
-      
+
       updatedAppointment = await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -1103,7 +1102,7 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
       }
     });
     console.log(updatedAppointment)
-    
+
     await prisma.notification.create({
       data: {
         userId: updatedAppointment.patient.userId,

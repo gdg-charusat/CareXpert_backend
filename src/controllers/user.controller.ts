@@ -622,7 +622,7 @@ const refreshAccessToken = async (req: any, res: any) => {
   }
 };
 
-const doctorProfile = async (req: Request, res: Response) => {
+const doctorProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -645,14 +645,13 @@ const doctorProfile = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, doctor));
+    return res.status(200).json(new ApiResponse(200, doctor));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
-    return;
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
-const userProfile = async (req: Request, res: Response) => {
+const userProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -683,7 +682,7 @@ const userProfile = async (req: Request, res: Response) => {
   }
 };
 
-const updatePatientProfile = async (req: any, res: Response) => {
+const updatePatientProfile = async (req: any, res: Response): Promise<any> => {
   try {
     const id = (req as any).user?.id;
     const { name } = req.body;
@@ -706,12 +705,11 @@ const updatePatientProfile = async (req: any, res: Response) => {
       },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, user, "Profile updated successfulyy"));
-    return;
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -841,7 +839,8 @@ const getAuthenticatedUserProfile = async (
   }
 };
 
-const getNotifications = async (req: any, res: Response) => {
+// Notifications API
+const getNotifications = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { page = 1, limit = 10 } = req.query;
@@ -874,11 +873,11 @@ const getNotifications = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const getUnreadNotificationCount = async (req: any, res: Response) => {
+const getUnreadNotificationCount = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -900,11 +899,11 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
       );
   } catch (error) {
     console.error("Error fetching unread count:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: any, res: Response) => {
+const markNotificationAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { notificationId } = req.params;
@@ -922,16 +921,16 @@ const markNotificationAsRead = async (req: any, res: Response) => {
       return;
     }
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Notification marked as read"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Notification marked as read")
+    );
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const markAllNotificationsAsRead = async (req: any, res: Response) => {
+const markAllNotificationsAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -943,16 +942,17 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
       data: { isRead: true },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "All notifications marked as read"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "All notifications marked as read")
+    );
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const getCommunityMembers = async (req: any, res: Response) => {
+// Community API
+const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
   try {
     const { roomId } = req.params;
 
@@ -1012,11 +1012,11 @@ const getCommunityMembers = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching community members:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const joinCommunity = async (req: any, res: Response) => {
+const joinCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;
@@ -1055,16 +1055,16 @@ const joinCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Successfully joined the community"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Successfully joined the community")
+    );
   } catch (error) {
     console.error("Error joining community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const leaveCommunity = async (req: any, res: Response) => {
+const leaveCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;
@@ -1087,12 +1087,12 @@ const leaveCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Successfully left the community"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Successfully left the community")
+    );
   } catch (error) {
     console.error("Error leaving community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 

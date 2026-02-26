@@ -14,11 +14,28 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import cacheService from "../utils/cacheService";
 
-const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
+const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { specialty, location } = req.query;
 
+  const specialtyQuery =
+    typeof specialty === "string" ? specialty.trim() : "";
+  const locationQuery =
+    typeof location === "string" ? location.trim() : "";
+
+  // Input validation
+  if (!specialtyQuery && !locationQuery) {
+    return res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "At least one search parameter (specialty or location) is required"
+        )
+      );
+  }
+
   try {
-    const cacheKey = `doctors:${specialty || 'all'}:${location || 'all'}`;
+    const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
@@ -27,24 +44,18 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
 
     const doctors = await prisma.doctor.findMany({
       where: {
-        AND: [
-          specialty
-            ? {
-              specialty: {
-                contains: specialty as string,
-                mode: "insensitive",
-              },
-            }
-            : {},
-          location
-            ? {
-              clinicLocation: {
-                contains: location as string,
-                mode: "insensitive",
-              },
-            }
-            : {},
-        ],
+        ...(specialtyQuery && {
+          specialty: {
+            contains: specialtyQuery as string,
+            mode: "insensitive"
+          }
+        }),
+        ...(locationQuery && {
+          clinicLocation: {
+            contains: locationQuery as string,
+            mode: "insensitive"
+          }
+        })
       },
       select: {
         id: true,
@@ -65,13 +76,13 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
     });
 
     await cacheService.set(cacheKey, doctors, 3600);
-    res.status(200).json(new ApiResponse(200, doctors));
+    return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
     return next(error);
   }
 };
 
-const availableTimeSlots = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+const availableTimeSlots = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
 
@@ -146,7 +157,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       location: slot.doctor.clinicLocation,
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedSlots));
+    return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
     return next(error);
   }
@@ -197,7 +208,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new AppError("This time slot is already booked", 409);
       }
 
-      const existingAppointment = await prisma.appointment.findFirst({
+      const existingAppointment = await tx.appointment.findFirst({
         where: {
           status: {
             in: [
@@ -218,7 +229,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new AppError("You already have an appointment in this time slot", 409);
       }
 
-      const updateResult = await prisma.timeSlot.updateMany({
+      const updateResult = await tx.timeSlot.updateMany({
         where: { id: timeSlotId, status: TimeSlotStatus.AVAILABLE },
         data: { status: TimeSlotStatus.BOOKED },
       });
@@ -227,7 +238,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new ApiError(400, "Time slot is already booked");
       }
 
-      const appointment = await prisma.appointment.create({
+      const appointment = await tx.appointment.create({
         data: {
           patientId: patient.id,
           doctorId: timeSlot.doctorId,
@@ -261,7 +272,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         },
       });
 
-      const updatedTimeSlot = await prisma.timeSlot.findUnique({ where: { id: timeSlotId } });
+      const updatedTimeSlot = await tx.timeSlot.findUnique({ where: { id: timeSlotId } });
 
       return { appointment, updatedTimeSlot };
     });

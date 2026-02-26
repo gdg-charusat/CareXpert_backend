@@ -87,7 +87,9 @@ export const analyzeReport = async (text: string, useCache: boolean = true): Pro
     throw new AIAnalysisError('No text provided for analysis', 400);
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  try {
+    getGeminiApiKey();
+  } catch {
     return {
       summary: "AI analysis is currently unavailable. Please configure GEMINI_API_KEY in your environment variables.",
       abnormal_values: [],
