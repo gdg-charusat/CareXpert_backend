@@ -20,6 +20,59 @@ const createTransporter = () => {
   });
 };
 
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<void> => {
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject,
+    html,
+  });
+};
+
+export const appointmentStatusTemplate = (
+  doctorName: string,
+  status: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  reason?: string
+): string => {
+  const actionText =
+    status === "CONFIRMED" ? "has been confirmed" : "has been declined";
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Appointment Update</h2>
+      <p>Your appointment with Dr. ${doctorName} ${actionText}.</p>
+      <p><strong>Date:</strong> ${appointmentDate}</p>
+      <p><strong>Time:</strong> ${appointmentTime}</p>
+      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+    </div>
+  `;
+};
+
+export const prescriptionTemplate = (
+  doctorName: string,
+  issuedDate: string
+): string => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">New Prescription Available</h2>
+      <p>Dr. ${doctorName} has issued a new prescription for you.</p>
+      <p><strong>Issued on:</strong> ${issuedDate}</p>
+      <p>Please log in to CareXpert to view the full prescription details.</p>
+    </div>
+  `;
+};
+
 export const sendVerificationEmail = async (
   email: string,
   name: string,

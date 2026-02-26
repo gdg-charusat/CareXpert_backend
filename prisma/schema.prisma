@@ -46,6 +46,8 @@ model User {
   password                String
   role                    Role     @default(PATIENT)
   refreshToken            String?
+  tokenVersion            Int      @default(0)
+  deletedAt               DateTime?
   isEmailVerified         Boolean  @default(false)
   emailVerificationToken  String?
   tokenExpiresAt          DateTime?

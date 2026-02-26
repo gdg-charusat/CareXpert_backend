@@ -15,35 +15,40 @@ import fs from "fs";
 const searchDoctors = async (req: any, res: Response) => {
   const { specialty, location } = req.query;
 
+  const specialtyQuery =
+    typeof specialty === "string" ? specialty.trim() : "";
+  const locationQuery =
+    typeof location === "string" ? location.trim() : "";
+
   // Input validation
-  // if (!specialty && !location) {
-  //   res
-  //     .status(400)
-  //     .json(
-  //       new ApiError(
-  //         400,
-  //         "At least one search parameter (specialty or location) is required"
-  //       )
-  //     );
-  //   return;
-  // }
+  if (!specialtyQuery && !locationQuery) {
+    res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "At least one search parameter (specialty or location) is required"
+        )
+      );
+    return;
+  }
 
   try {
     const doctors = await prisma.doctor.findMany({
       where: {
         AND: [
-          specialty
+          specialtyQuery
             ? {
                 specialty: {
-                  contains: specialty as string,
+                  contains: specialtyQuery,
                   mode: "insensitive", // Case-insensitive search
                 },
               }
             : {},
-          location
+          locationQuery
             ? {
                 clinicLocation: {
-                  contains: location as string,
+                  contains: locationQuery,
                   mode: "insensitive", // Case-insensitive search
                 },
               }

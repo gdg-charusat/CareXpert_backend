@@ -172,7 +172,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
           (appointment as any).doctor.user.name,
           new Date().toLocaleDateString()
         ),
-      }).catch(err => console.error("Failed to send prescription email:", err));
+      }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
     }
     res
       .status(200)
@@ -952,7 +952,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
         appointment.time,
         action === "accept" ? undefined : rejectionReason
       ),
-    }).catch(err => console.error("Failed to send appointment status email:", err));
+    }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
     res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,

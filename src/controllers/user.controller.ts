@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 import bcrypt from "bcrypt";
 import { Response } from "express";
+import jwt from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";

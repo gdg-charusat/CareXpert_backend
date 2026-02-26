@@ -101,7 +101,9 @@ export const analyzeReport = async (text: string, useCache: boolean = true): Pro
   }
 
   // Check if Gemini API is available
-  if (!model || !GEMINI_API_KEY) {
+  try {
+    getGeminiApiKey();
+  } catch {
     return {
       summary: "AI analysis is currently unavailable. Please configure GEMINI_API_KEY in your environment variables.",
       abnormal_values: [],

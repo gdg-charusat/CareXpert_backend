@@ -3,17 +3,7 @@ import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 
-// Helper Interface to type 'req.user' as attached by 'isAuthenticated' middleware
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    patient?: { id: string } | null;
-    doctor?: { id: string } | null;
-  };
-}
+type AuthRequest = Request;
 
 /**
  * Get Health Summary
