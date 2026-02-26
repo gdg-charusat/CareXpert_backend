@@ -39,9 +39,11 @@ async function main() {
       admin: {
         create: {
           permissions: {
-            manage_users: true,
-            verify_doctors: true,
-            view_analytics: true,
+            canManageUsers: true,
+            canManageDoctors: true,
+            canManagePatients: true,
+            canViewAnalytics: true,
+            canManageSystem: true,
           },
         },
       },

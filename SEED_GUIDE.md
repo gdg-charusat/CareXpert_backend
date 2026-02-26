@@ -2,6 +2,8 @@
 
 This guide explains how to populate your CareXpert database with sample data for development and testing.
 
+⚠️ **Warning**: Running the seed script deletes existing data in your database. Only run this against a local/dev database you are okay wiping.
+
 ## Quick Start
 
 ```bash
@@ -217,7 +219,7 @@ npm run seed
 
 ### Seed Script Location
 ```
-backend/prisma/seed.ts
+prisma/seed.ts
 ```
 
 ### Environment Requirements
@@ -335,7 +337,7 @@ Use the Postman collection with seed credentials:
 3. All referenced IDs in Postman will work with seed data
 4. Test complete workflows from doctor/patient perspective
 
-**See**: [postman/README.md](../../postman/README.md)
+**See**: [postman/README.md](postman/README.md)
 
 ## Advanced Seed Customization
 
@@ -418,6 +420,6 @@ npm run seed
 
 ---
 
-**Last Updated**: February 26, 2025
+**Last Updated**: February 26, 2026
 **Seed Version**: 1.0.0
 **Maintained By**: CareXpert Development Team

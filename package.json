@@ -20,6 +20,9 @@
     "test:socket": "node test-socket-server.js",
     "test:socket:token": "node test-socket-token.js"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
