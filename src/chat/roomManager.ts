@@ -3,14 +3,14 @@ import { formatMessage } from "./utils";
 import prisma from "../utils/prismClient";
 
 interface JoinRoomData {
-  userId: string;
-  username: string;
+  // userId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   roomId: string;
 }
 
 interface RoomMessageData {
-  senderId: string;
-  username: string;
+  // senderId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   roomId: string;
   text: string;
   image?: string;
@@ -26,7 +26,10 @@ export function handleRoomSocket(nsp: Namespace, socket: Socket) {
     "joinRoom",
     async (message: { event: string; data: JoinRoomData }) => {
       try {
-        const { userId, username, roomId } = message.data;
+        const { roomId } = message.data;
+        // Use server-verified identity — never trust client-supplied userId/username
+        const userId   = socket.data.userId as string;
+        const username = socket.data.name   as string;
 
         socket.join(roomId);
 
@@ -57,20 +60,10 @@ export function handleRoomSocket(nsp: Namespace, socket: Socket) {
     "roomMessage",
     async (message: { event: string; data: RoomMessageData }) => {
       try {
-        let { senderId, username, roomId, text, image } = message.data;
-
-        if (!senderId && username) {
-          const user = await prisma.user.findFirst({
-            where: { name: { equals: username, mode: "insensitive" } },
-            select: { id: true },
-          });
-          if (user) senderId = user.id;
-        }
-
-        if (!senderId) {
-          socket.emit("error", "Missing senderId for room message");
-          return;
-        }
+        const { roomId, text, image } = message.data;
+        // Use server-verified identity — never trust client-supplied senderId/username
+        const senderId = socket.data.userId as string;
+        const username = socket.data.name   as string;
 
         const messageData = {
           roomId,

@@ -5,9 +5,9 @@ import { uploadToCloudinary } from "../utils/cloudinary";
 
 interface DmMessageData {
   roomId: string;
-  senderId: string;
+  // senderId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   receiverId: string;
-  username: string;
   text: string;
   image?: string;
 }
@@ -33,8 +33,11 @@ export function handleDmSocket(nsp: Namespace, socket: Socket) {
     "dmMessage",
     async (message: { event: string; data: DmMessageData }) => {
       try {
-        const { roomId, senderId, receiverId, username, text, image } =
-          message.data;
+        const { roomId, receiverId, text, image } = message.data;
+        // Use server-verified identity — never trust client-supplied senderId/username
+        const senderId = socket.data.userId as string;
+        const username = socket.data.name   as string;
+
         let messageData: any = {
           roomId,
           senderId,
@@ -59,7 +62,7 @@ export function handleDmSocket(nsp: Namespace, socket: Socket) {
 
         const formattedMessage = formatMessage(messageData);
         console.log("DM Message Data:", {
-          senderId,
+          senderId,   // verified via JWT
           receiverId,
           roomId,
           message: text,

@@ -110,7 +110,9 @@ dmNsp.use(socketAuthMiddleware);
 
 roomNsp.on("connection", (socket) => {
   socket.on("joinRoom", (msg) => {
-    const { roomId, username } = msg.data || {};
+    const { roomId } = msg.data || {};
+    // Use server-verified identity — never trust client-supplied username/userId
+    const username = socket.data.name;
     socket.join(roomId);
     socket.emit("message", {
       text: `Welcome to ${roomId} room!`,
@@ -125,7 +127,9 @@ roomNsp.on("connection", (socket) => {
   });
 
   socket.on("roomMessage", (msg) => {
-    const { roomId, text, username } = msg.data || {};
+    const { roomId, text } = msg.data || {};
+    // Use server-verified identity — never trust client-supplied username/senderId
+    const username = socket.data.name;
     socket.to(roomId).emit("message", { text, username, createdAt: new Date() });
   });
 });
@@ -136,7 +140,9 @@ dmNsp.on("connection", (socket) => {
   });
 
   socket.on("dmMessage", (msg) => {
-    const { roomId, text, username } = msg.data || {};
+    const { roomId, text } = msg.data || {};
+    // Use server-verified identity — never trust client-supplied username/senderId
+    const username = socket.data.name;
     dmNsp.to(roomId).emit("message", { text, username, createdAt: new Date() });
   });
 });
