@@ -4,8 +4,13 @@ import prisma from "../utils/prismClient";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const getGenAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set in environment variables");
+  }
+  return new GoogleGenerativeAI(apiKey);
+};
 
 interface GeminiResponse {
   probable_causes: string[];
@@ -14,9 +19,17 @@ interface GeminiResponse {
   disclaimer: string;
 }
 
-/**
- * Process user symptoms and get AI analysis
- */
+const isGeminiQuotaOrRateLimitError = (error: any): boolean => {
+  const status = error?.status;
+  const text = String(error?.message || "").toLowerCase();
+
+  return (
+    status === 429 ||
+    text.includes("too many requests") ||
+    text.includes("quota exceeded")
+  );
+};
+
 export const processSymptoms = async (req: any, res: any) => {
   try {
     const { symptoms, language = "en" } = req.body;
@@ -34,7 +47,6 @@ export const processSymptoms = async (req: any, res: any) => {
       throw new ApiError(401, "User authentication required");
     }
 
-    // Create the prompt based on ai-chat.md specifications
     const languageInstruction =
       language !== "en"
         ? `\n\nIMPORTANT: Respond in ${language} language. All text in the JSON response (probable_causes, recommendation, disclaimer) should be in ${language}. For the severity field, translate "mild", "moderate", and "severe" to the appropriate words in ${language}.`
@@ -62,18 +74,15 @@ Respond with ONLY a valid JSON object in this exact format:
 
 Important: Respond with ONLY the JSON object, no additional text or formatting.`;
 
-    // Get the Gemini model
+    const genAI = getGenAI();
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // Generate content
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiResponseText = response.text();
 
-    // Parse the JSON response
     let parsedResponse: GeminiResponse;
     try {
-      // Clean the response to ensure it's valid JSON
       const cleanedResponse = aiResponseText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
@@ -85,7 +94,6 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
       throw new ApiError(500, "Failed to parse AI response. Please try again.");
     }
 
-    // Validate the response structure
     if (
       !parsedResponse.probable_causes ||
       !parsedResponse.severity ||
@@ -96,17 +104,15 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
       throw new ApiError(500, "Invalid AI response format. Please try again.");
     }
 
-    // Validate severity
     if (!["mild", "moderate", "severe"].includes(parsedResponse.severity)) {
-      parsedResponse.severity = "moderate"; // Default fallback
+      parsedResponse.severity = "moderate";
     }
 
-    // Store the AI chat in database
     const aiChat = await prisma.aiChat.create({
       data: {
         userId,
         userMessage: symptoms.trim(),
-        aiResponse: parsedResponse as any, // Cast to any to satisfy Prisma's Json type
+        aiResponse: parsedResponse as any,
         probableCauses: parsedResponse.probable_causes,
         severity: parsedResponse.severity,
         recommendation: parsedResponse.recommendation,
@@ -114,18 +120,30 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
       },
     });
 
-    // Return the response
     res
       .status(200)
       .json(
         new ApiResponse(
           200,
           parsedResponse,
-          "AI analysis completed successfully"
-        )
+          "AI analysis completed successfully",
+        ),
       );
   } catch (error) {
     console.error("Error in processSymptoms:", error);
+
+    if (isGeminiQuotaOrRateLimitError(error)) {
+      return res.status(503).json(
+        new ApiResponse(
+          503,
+          {
+            provider: "gemini",
+            reason: "quota_or_rate_limited",
+          },
+          "AI service is temporarily unavailable due to quota limits. Please try again shortly.",
+        ),
+      );
+    }
 
     if (error instanceof ApiError) {
       res
@@ -137,9 +155,6 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
   }
 };
 
-/**
- * Get user's AI chat history
- */
 export const getChatHistory = async (req: any, res: any) => {
   try {
     const userId = (req as any).user?.id;
@@ -187,8 +202,8 @@ export const getChatHistory = async (req: any, res: any) => {
             pages: Math.ceil(total / limitNum),
           },
         },
-        "Chat history retrieved successfully"
-      )
+        "Chat history retrieved successfully",
+      ),
     );
   } catch (error) {
     console.error("Error in getChatHistory:", error);
@@ -203,9 +218,6 @@ export const getChatHistory = async (req: any, res: any) => {
   }
 };
 
-/**
- * Get a specific AI chat by ID
- */
 export const getChatById = async (req: any, res: any) => {
   try {
     const { chatId } = (req as any).params;
@@ -252,9 +264,6 @@ export const getChatById = async (req: any, res: any) => {
   }
 };
 
-/**
- * Clear user's AI chat history
- */
 export const clearChatHistory = async (req: any, res: any) => {
   try {
     const userId = (req as any).user?.id;

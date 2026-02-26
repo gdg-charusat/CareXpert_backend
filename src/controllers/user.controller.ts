@@ -1,19 +1,29 @@
-import { ApiError } from "../utils/ApiError";
+import { AppError } from "../utils/AppError";
+import { ApiError } from "../utils/ApiError"; // legacy – remaining secondary handlers still use this
 import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 import bcrypt from "bcrypt";
-import { Response } from "express";
+import { Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
-import { Role } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
-import { isValidUUID } from "../utils/helper";
+import { isValidUUID, validatePassword } from "../utils/helper";
 import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
+import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
   try {
-    const accessToken = generateAccessToken(userId);
-    const refreshToken = generateRefreshToken(userId);
+    
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
+    });
+
+    const accessToken = generateAccessToken(userId, user.tokenVersion);
+    const refreshToken = generateRefreshToken(userId, user.tokenVersion);
 
     await prisma.user.update({
       where: { id: userId },
@@ -22,13 +32,11 @@ const generateToken = async (userId: string) => {
 
     return { accessToken, refreshToken };
   } catch (err) {
-    throw new ApiError(500, "Error in generating token");
+    throw new AppError("Error in generating token", 500, false);
   }
 };
 
-// Using Request type from Express with proper typing
-
-const signup = async (req: Request, res: any) => {
+const signup = async (req: Request, res: any, next: NextFunction) => {
   const {
     firstName,
     lastName,
@@ -37,7 +45,7 @@ const signup = async (req: Request, res: any) => {
     role,
     specialty,
     clinicLocation,
-    location, // Patient location
+    location, 
   } = req.body;
 
   const name = `${firstName || ""} ${lastName || ""}`.trim();
@@ -50,9 +58,7 @@ const signup = async (req: Request, res: any) => {
     email.trim() === "" ||
     password.trim() === ""
   ) {
-    return res
-      .status(400)
-      .json(new ApiError(400, "Name, email, and password are required"));
+    return next(new AppError("Name, email, and password are required", 400));
   }
   if (role === "DOCTOR") {
     if (
@@ -61,16 +67,19 @@ const signup = async (req: Request, res: any) => {
       specialty.trim() === "" ||
       clinicLocation.trim() === ""
     ) {
-      return res
-        .status(400)
-        .json(new ApiError(400, "All doctor fields are required"));
+      return next(new AppError("All doctor fields are required", 400));
     }
   } else if (role === "PATIENT") {
     if (!location || location.trim() === "") {
-      return res
-        .status(400)
-        .json(new ApiError(400, "Location is required for patients"));
+      return next(new AppError("Location is required for patients", 400));
     }
+  }
+
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res
+      .status(400)
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
   }
 
   try {
@@ -79,7 +88,7 @@ const signup = async (req: Request, res: any) => {
     });
 
     if (existingUser) {
-      return res.status(409).json(new ApiError(409, "Username already taken"));
+      return next(new AppError("Username already taken", 409));
     }
 
     existingUser = await prisma.user.findUnique({
@@ -87,24 +96,29 @@ const signup = async (req: Request, res: any) => {
     });
 
     if (existingUser) {
-      return res.status(409).json(new ApiError(409, "User already exists"));
+      return next(new AppError("User already exists", 409));
     }
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = generateVerificationToken();
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); 
 
-    const result = await prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.create({
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
           password: hashedPassword,
           role,
+          isEmailVerified: false,
+          emailVerificationToken: verificationToken,
+          tokenExpiresAt: tokenExpiresAt,
           profilePicture:
             "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
         },
       });
 
       if (role === "DOCTOR") {
-        await prisma.doctor.create({
+        await tx.doctor.create({
           data: {
             userId: user.id,
             specialty,
@@ -112,20 +126,18 @@ const signup = async (req: Request, res: any) => {
           },
         });
 
-        // Auto-join doctor to city room based on clinic location
         if (clinicLocation) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: clinicLocation },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: clinicLocation },
             });
           }
 
-          // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -136,26 +148,25 @@ const signup = async (req: Request, res: any) => {
         }
       } else {
         await prisma.patient.create({
+        await tx.patient.create({
           data: {
             userId: user.id,
             location: location || null,
           },
         });
 
-        // Auto-join patient to city room based on location
         if (location) {
-          let cityRoom = await prisma.room.findFirst({
+          let cityRoom = await tx.room.findFirst({
             where: { name: location },
           });
 
           if (!cityRoom) {
-            cityRoom = await prisma.room.create({
+            cityRoom = await tx.room.create({
               data: { name: location },
             });
           }
 
-          // Add user to the city room
-          await prisma.room.update({
+          await tx.room.update({
             where: { id: cityRoom.id },
             data: {
               members: {
@@ -169,9 +180,27 @@ const signup = async (req: Request, res: any) => {
       return user;
     });
 
+    try {
+      await sendVerificationEmail(result.email, result.name, verificationToken);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      
+    }
+
     return res
-      .status(200)
-      .json(new ApiResponse(200, { user: result }, "Signup successful"));
+      .status(201)
+      .json(new ApiResponse(
+        201, 
+        { 
+          user: { 
+            id: result.id, 
+            email: result.email, 
+            name: result.name,
+            isEmailVerified: result.isEmailVerified 
+          } 
+        }, 
+        "Signup successful! Please verify your email address."
+      ));
   } catch (err) {
     console.error(err);
     return res
@@ -180,7 +209,140 @@ const signup = async (req: Request, res: any) => {
   }
 };
 
-const adminSignup = async (req: Request, res: any) => {
+const verifyEmail = async (req: Request, res: any) => {
+  try {
+    const { token, email } = req.query;
+
+    if (!token || !email) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Verification token and email are required"));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: String(email) },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "User not found"));
+    }
+
+    if (user.isEmailVerified) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Email is already verified"));
+    }
+
+    if (user.emailVerificationToken !== String(token)) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Invalid verification token"));
+    }
+
+    if (user.tokenExpiresAt && new Date() > user.tokenExpiresAt) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Verification token has expired"));
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+        tokenExpiresAt: null,
+      },
+    });
+
+    try {
+      await sendWelcomeEmail(updatedUser.email, updatedUser.name);
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(
+        200, 
+        { 
+          user: { 
+            id: updatedUser.id, 
+            email: updatedUser.email, 
+            name: updatedUser.name,
+            isEmailVerified: updatedUser.isEmailVerified 
+          } 
+        }, 
+        "Email verified successfully! Your account is now active."
+      ));
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Internal server error", [err]));
+  }
+};
+
+const resendVerificationEmail = async (req: Request, res: any, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || email.trim() === "") {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Email is required"));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "User not found"));
+    }
+
+    if (user.isEmailVerified) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Email is already verified"));
+    }
+
+    const verificationToken = generateVerificationToken();
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: verificationToken,
+        tokenExpiresAt: tokenExpiresAt,
+      },
+    });
+
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      return res
+        .status(500)
+        .json(new ApiError(500, "Failed to send verification email"));
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(
+        200, 
+        {}, 
+        "Verification email sent successfully"
+      ));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const adminSignup = async (req: Request, res: any, next: NextFunction) => {
   const { firstName, lastName, email, password } = req.body;
 
   const name = `${firstName || ""} ${lastName || ""}`.trim();
@@ -193,9 +355,14 @@ const adminSignup = async (req: Request, res: any) => {
     email.trim() === "" ||
     password.trim() === ""
   ) {
+    return next(new AppError("Name, email, and password are required", 400));
+  }
+
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
     return res
       .status(400)
-      .json(new ApiError(400, "Name, email, and password are required"));
+      .json(new ApiError(400, passwordValidation.message || "Invalid password"));
   }
 
   try {
@@ -204,7 +371,7 @@ const adminSignup = async (req: Request, res: any) => {
     });
 
     if (existingUser) {
-      return res.status(409).json(new ApiError(409, "Username already taken"));
+      return next(new AppError("Username already taken", 409));
     }
 
     existingUser = await prisma.user.findUnique({
@@ -212,25 +379,24 @@ const adminSignup = async (req: Request, res: any) => {
     });
 
     if (existingUser) {
-      return res.status(409).json(new ApiError(409, "User already exists"));
+      return next(new AppError("User already exists", 409));
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const result = await prisma.$transaction(async (prisma) => {
-      // Create the user
-      const user = await prisma.user.create({
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      
+      const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
           email,
           password: hashedPassword,
           role: "ADMIN",
-          profilePicture:
-            "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
+          isEmailVerified: true,
+          profilePicture: null,
         },
       });
 
-      // Create the admin record
-      const admin = await prisma.admin.create({
+      const admin = await tx.admin.create({
         data: {
           userId: user.id,
           permissions: {
@@ -252,21 +418,21 @@ const adminSignup = async (req: Request, res: any) => {
         new ApiResponse(200, { user: result.user }, "Admin signup successful")
       );
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json(new ApiError(500, "Internal server error", [err]));
+    return next(err);
   }
 };
 
-const login = async (req: any, res: any) => {
+const login = async (req: any, res: any, next: NextFunction) => {
   const { data, password } = req.body;
   try {
     if (!data) {
-      return res.json(new ApiError(400, "username or email is required"));
+      throw new AppError("Username or email is required", 400);
+    }
+    if (!password) {
+      throw new AppError("Password is required", 400);
     }
     if ([password, data].some((field) => field.trim() === "")) {
-      return res.json(new ApiError(400, "All field required"));
+      throw new AppError("All fields are required", 400);
     }
 
     const user = await prisma.user.findFirst({
@@ -279,26 +445,35 @@ const login = async (req: any, res: any) => {
     });
 
     if (!user) {
+      throw new AppError("Invalid username or password", 401);
+    }
+
+    if (user.deletedAt) {
       return res
-        .status(401)
-        .json(new ApiError(401, "Invalid username or password"));
+        .status(403)
+        .json(new ApiError(403, "This account has been deactivated. Please contact support."));
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
+      throw new AppError("Invalid username or password", 401);
+    }
+
+    if (!user.isEmailVerified) {
       return res
-        .status(401)
-        .json(new ApiError(401, "Invalid username or password"));
+        .status(403)
+        .json(new ApiError(
+          403, 
+          "Please verify your email before logging in. Check your inbox for verification link."
+        ));
     }
 
     const { accessToken, refreshToken } = await generateToken(user.id);
 
-    // const {password , ...loggedInUser} = user;
-
     const options = {
-      httpOnly: true, //only modified by server
+      httpOnly: true, 
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const, // Added SameSite policy
+      sameSite: "lax" as const, 
     };
 
     return res
@@ -308,36 +483,128 @@ const login = async (req: any, res: any) => {
       .json(
         new ApiResponse(
           200,
-          { ...user, accessToken, refreshToken },
-          "Login successfully"
-        )
+          {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePicture: user.profilePicture,
+            accessToken,
+          },
+          "Login successfully",
+        ),
       );
   } catch (err) {
-    return res.status(500).json(new ApiError(500, "Internal server error"));
+    return next(err);
   }
 };
 
-const logout = async (req: any, res: any) => {
+const logout = async (req: any, res: any, next: NextFunction) => {
   try {
     const id = (req as any).user.id;
 
     await prisma.user.update({
       where: { id },
-      data: { refreshToken: "" },
+      data: {
+        refreshToken: "",
+        tokenVersion: { increment: 1 },
+      },
     });
 
     const options = {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const, 
     };
 
     return res
       .status(200)
       .clearCookie("accessToken", options)
-      .clearCookie("refresToken", options)
+      .clearCookie("refreshToken", options)
       .json(new ApiResponse(200, "Logout successfully"));
   } catch (err) {
-    return res.status(500).json(new ApiError(500, "internal server error"));
+    return next(err);
+  }
+};
+
+const refreshAccessToken = async (req: any, res: any) => {
+  try {
+    const incomingRefreshToken =
+      req.cookies?.refreshToken || req.body?.refreshToken;
+
+    if (!incomingRefreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token is required"));
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(
+        incomingRefreshToken,
+        process.env.REFRESH_TOKEN_SECRET as string
+      );
+    } catch {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Invalid or expired refresh token"));
+    }
+
+    if (
+      typeof decoded !== "object" ||
+      !decoded.userId ||
+      typeof decoded.userId !== "string" ||
+      typeof decoded.tokenVersion !== "number"
+    ) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Invalid token payload"));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, refreshToken: true, tokenVersion: true },
+    });
+
+    if (!user) {
+      return res.status(401).json(new ApiError(401, "User not found"));
+    }
+
+    if (user.refreshToken !== incomingRefreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token has been revoked"));
+    }
+
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Token version mismatch, please login again"));
+    }
+
+    const { accessToken, refreshToken } = await generateToken(user.id);
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+    };
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken },
+          "Token refreshed successfully"
+        )
+      );
+  } catch (err) {
+    return res
+      .status(500)
+      .json(new ApiError(500, "Internal server error", [err]));
   }
 };
 
@@ -357,7 +624,7 @@ const doctorProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
+            
             createdAt: true,
           },
         },
@@ -386,7 +653,7 @@ const userProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            refreshToken: true,
+            
             createdAt: true,
           },
         },
@@ -419,7 +686,7 @@ const updatePatientProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        refreshToken: true,
+        
         createdAt: true,
       },
     });
@@ -435,7 +702,7 @@ const updatePatientProfile = async (req: any, res: Response) => {
 const updateDoctorProfile = async (req: any, res: Response) => {
   try {
     let id = (req as any).user?.doctor?.id;
-    const { specialty, clinicLocation, experience, bio, name } = req.body;
+    const { specialty, clinicLocation, experience, bio, name, education, languages } = req.body;
     const imageUrl = req.file?.path;
 
     const doctorData: {
@@ -443,11 +710,15 @@ const updateDoctorProfile = async (req: any, res: Response) => {
       clinicLocation?: string;
       experience?: string;
       bio?: string;
+      education?: string;
+      languages?: string[];
     } = {};
     if (specialty) doctorData.specialty = specialty;
     if (clinicLocation) doctorData.clinicLocation = clinicLocation;
     if (experience) doctorData.experience = experience;
     if (bio) doctorData.bio = bio;
+    if (education) doctorData.education = education;
+    if (languages) doctorData.languages = Array.isArray(languages) ? languages : [languages];
 
     const doctor = await prisma.doctor.update({
       where: { id },
@@ -467,7 +738,7 @@ const updateDoctorProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        refreshToken: true,
+        
         createdAt: true,
         doctor: true,
       },
@@ -495,7 +766,6 @@ const getAuthenticatedUserProfile = async (
       return;
     }
 
-    // 1. Fetch basic user data
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -509,13 +779,13 @@ const getAuthenticatedUserProfile = async (
     });
 
     if (!user) {
-      // This case should ideally not happen if isAuthenticated works correctly
+      
       res.status(404).json(new ApiError(404, "User not found"));
       return;
     }
 
     let relatedProfileData = null;
-    // 2. Conditionally fetch related profile data based on role
+    
     if (user.role === "PATIENT") {
       relatedProfileData = await prisma.patient.findUnique({
         where: { userId: user.id },
@@ -528,7 +798,6 @@ const getAuthenticatedUserProfile = async (
       });
     }
 
-    // 3. Combine user data with related profile data
     const fullUserProfile = {
       ...user,
       ...(relatedProfileData && user.role === "PATIENT"
@@ -545,8 +814,8 @@ const getAuthenticatedUserProfile = async (
         new ApiResponse(
           200,
           fullUserProfile,
-          "User profile fetched successfully"
-        )
+          "User profile fetched successfully",
+        ),
       );
     return;
   } catch (error) {
@@ -556,7 +825,6 @@ const getAuthenticatedUserProfile = async (
   }
 };
 
-// Notifications API
 const getNotifications = async (req: any, res: Response) => {
   try {
     const userId = (req as any).user?.id;
@@ -564,7 +832,7 @@ const getNotifications = async (req: any, res: Response) => {
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
     });
@@ -574,15 +842,19 @@ const getNotifications = async (req: any, res: Response) => {
     });
 
     res.status(200).json(
-      new ApiResponse(200, {
-        notifications,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit)),
+      new ApiResponse(
+        200,
+        {
+          notifications,
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total,
+            pages: Math.ceil(total / Number(limit)),
+          },
         },
-      }, "Notifications fetched successfully")
+        "Notifications fetched successfully",
+      ),
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -601,9 +873,15 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
       },
     });
 
-    return res.status(200).json(
-      new ApiResponse(200, { unreadCount }, "Unread count fetched successfully")
-    );
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { unreadCount },
+          "Unread count fetched successfully",
+        ),
+      );
   } catch (error) {
     console.error("Error fetching unread count:", error);
     return res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -658,7 +936,6 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
   }
 };
 
-// Community API
 const getCommunityMembers = async (req: any, res: Response) => {
   try {
     const { roomId } = req.params;
@@ -689,27 +966,32 @@ const getCommunityMembers = async (req: any, res: Response) => {
       return;
     }
 
-    const members = room.members.map(member => ({
+    const members = room.members.map((member) => ({
       id: member.id,
       name: member.name,
       email: member.email,
       profilePicture: member.profilePicture,
       role: member.role,
-      location: member.patient?.location || member.doctor?.clinicLocation || null,
+      location:
+        member.patient?.location || member.doctor?.clinicLocation || null,
       specialty: member.doctor?.specialty || null,
       joinedAt: member.createdAt,
     }));
 
     res.status(200).json(
-      new ApiResponse(200, {
-        room: {
-          id: room.id,
-          name: room.name,
-          createdAt: room.createdAt,
+      new ApiResponse(
+        200,
+        {
+          room: {
+            id: room.id,
+            name: room.name,
+            createdAt: room.createdAt,
+          },
+          members,
+          totalMembers: members.length,
         },
-        members,
-        totalMembers: members.length,
-      }, "Community members fetched successfully")
+        "Community members fetched successfully",
+      ),
     );
   } catch (error) {
     console.error("Error fetching community members:", error);
@@ -731,7 +1013,6 @@ const joinCommunity = async (req: any, res: Response) => {
       return;
     }
 
-    // Check if user is already a member
     const existingMember = await prisma.room.findFirst({
       where: {
         id: roomId,
@@ -742,11 +1023,12 @@ const joinCommunity = async (req: any, res: Response) => {
     });
 
     if (existingMember) {
-      res.status(400).json(new ApiError(400, "User is already a member of this community"));
+      res
+        .status(400)
+        .json(new ApiError(400, "User is already a member of this community"));
       return;
     }
 
-    // Add user to the community
     await prisma.room.update({
       where: { id: roomId },
       data: {
@@ -779,7 +1061,6 @@ const leaveCommunity = async (req: any, res: Response) => {
       return;
     }
 
-    // Remove user from the community
     await prisma.room.update({
       where: { id: roomId },
       data: {
@@ -803,6 +1084,7 @@ export {
   adminSignup,
   login,
   logout,
+  refreshAccessToken,
   doctorProfile,
   userProfile,
   updatePatientProfile,
@@ -815,4 +1097,6 @@ export {
   getCommunityMembers,
   joinCommunity,
   leaveCommunity,
+  verifyEmail,
+  resendVerificationEmail,
 };

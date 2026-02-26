@@ -1,8 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 interface JoinRoomData {
   userId: string;
@@ -33,7 +31,6 @@ export function handleRoomSocket(io: Server, socket: Socket) {
           text: `Welcome to ${roomId} room!`,
         });
 
-        // Attach roomId so clients can filter by room
         (welcomeMsg as any).roomId = roomId;
         socket.emit("message", welcomeMsg);
 
@@ -57,7 +54,6 @@ export function handleRoomSocket(io: Server, socket: Socket) {
       try {
         let { senderId, username, roomId, text, image } = message.data;
 
-        // Fallback: if senderId is missing (seen in some patient emits), try to resolve by username
         if (!senderId && username) {
           const user = await prisma.user.findFirst({
             where: { name: { equals: username, mode: "insensitive" } },
@@ -66,7 +62,6 @@ export function handleRoomSocket(io: Server, socket: Socket) {
           if (user) senderId = user.id;
         }
 
-        // If still missing, do not attempt to persist; notify client
         if (!senderId) {
           socket.emit("error", "Missing senderId for room message");
           return;
@@ -82,10 +77,8 @@ export function handleRoomSocket(io: Server, socket: Socket) {
         const formattedMessage = formatMessage(messageData);
         (formattedMessage as any).roomId = roomId;
 
-        // Broadcast to everyone else in the room (avoid echo to sender to prevent duplicate on client)
         socket.to(roomId).emit("message", formattedMessage);
 
-        // Persist to DB
         await prisma.chatMessage.create({
           data: {
             senderId: senderId,
@@ -93,7 +86,7 @@ export function handleRoomSocket(io: Server, socket: Socket) {
             message: text,
             messageType: image ? "IMAGE" : "TEXT",
             imageUrl: image || null,
-            receiverId: null, // Room messages don't have a specific receiver
+            receiverId: null, 
           },
         });
       } catch (error) {
