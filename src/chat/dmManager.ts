@@ -1,9 +1,8 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
 
-const prisma = new PrismaClient();
 interface DmMessageData {
   roomId: string;
   senderId: string;
@@ -16,17 +15,9 @@ interface DmMessageData {
 export function handleDmSocket(io: Server, socket: Socket) {
   socket.on("joinDmRoom", async (roomId: string) => {
     try {
-      // const { roomId } = message;
+      
       socket.join(roomId);
 
-      // const clients = await io.in(roomId).allSockets();
-      // // console.log(`${socket.id} joined room ${roomId}`);
-      // console.log(`Room ${roomId} has ${clients.size} user(s)`);
-
-      // if (clients.size === 2) {
-      //   // Notify both users that chat is ready
-      //   io.to(roomId).emit("bothUsersJoined", { roomId });
-      // }
     } catch (error) {
       console.error("Error in joinDmRoom:", error);
       socket.emit("error", "Failed to join DM room");
@@ -76,7 +67,7 @@ export function handleDmSocket(io: Server, socket: Socket) {
           data: {
             senderId: senderId,
             receiverId: receiverId,
-            roomId: null, // DMs don't use room IDs, they use sender/receiver relationship
+            roomId: null, 
             message: text,
             messageType: image ? "IMAGE" : "TEXT",
             imageUrl: image ? formattedMessage.imageUrl : null,

@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import xss from 'xss';
 
-// Recursively sanitize all string properties in an object
 function sanitizeObject(obj: any): any {
     if (typeof obj !== 'object' || obj === null) return obj;
     for (const key in obj) {
