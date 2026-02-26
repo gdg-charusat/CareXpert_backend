@@ -11,6 +11,7 @@
     "migrate": "prisma migrate dev",
     "deploy": "prisma migrate deploy",
     "studio": "prisma studio",
+    "seed": "ts-node prisma/seed.ts",
     "create-admin": "node create-admin.js",
     "optimize:indexes": "prisma migrate deploy",
     "prepare": "husky",
@@ -18,6 +19,9 @@
     "test:watch": "jest --watch",
     "test:socket": "node test-socket-server.js",
     "test:socket:token": "node test-socket-token.js"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "jest": {
     "preset": "ts-jest",
