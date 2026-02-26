@@ -8,13 +8,16 @@ import {
 } from "../controllers/admin.controller";
 import { isAdmin } from "../utils/helper";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
 
 const router = Router();
 
-router.get("/users", isAuthenticated, isAdmin, listAllUsers);
-router.patch("/verify-doctor/:doctorUserId", isAuthenticated, isAdmin, verifyDoctor);
-router.get("/dashboard-stats", isAuthenticated, isAdmin, getDashboardStats);
-router.delete("/users/:userId", isAuthenticated, isAdmin, softDeleteUser);
-router.patch("/users/:userId/role", isAuthenticated, isAdmin, changeUserRole);
+router.use(isAuthenticated, globalRateLimiter, isAdmin);
+
+router.get("/users", listAllUsers);
+router.patch("/verify-doctor/:doctorUserId", verifyDoctor);
+router.get("/dashboard-stats", getDashboardStats);
+router.delete("/users/:userId", softDeleteUser);
+router.patch("/users/:userId/role", changeUserRole);
 
 export default router;
