@@ -18,10 +18,10 @@ interface RoomMessageData {
 
 /**
  * Registers room-based chat event handlers on the /chat/room namespace.
- * @param nsp  - The /chat/room Namespace instance
+ * @param _nsp  - The /chat/room Namespace instance (currently unused; retained for API consistency)
  * @param socket - The individual authenticated socket connection
  */
-export function handleRoomSocket(nsp: Namespace, socket: Socket) {
+export function handleRoomSocket(_nsp: Namespace, socket: Socket) {
   socket.on(
     "joinRoom",
     async (message: { event: string; data: JoinRoomData }) => {

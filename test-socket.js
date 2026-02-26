@@ -240,16 +240,14 @@ async function runTests() {
   console.log("\n[Group 5] /chat/dm events\n");
 
   try {
-    // joinDmRoom doesn't emit back to the sender — just check no error event
-    let errReceived = null;
-    dmSocket.once("error", (e) => (errReceived = e));
-    dmSocket.emit("joinDmRoom", TEST_DM_ROOM_ID);
-    await new Promise((r) => setTimeout(r, 500));
-
-    if (!errReceived) {
-      pass(`joinDmRoom "${TEST_DM_ROOM_ID}" → no error`);
+    // joinDmRoom now emits a welcome ack back to the joiner — assert it.
+    const ackPromise = waitForEvent(dmSocket, "message");
+    dmSocket.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: TEST_DM_ROOM_ID } });
+    const ack = await ackPromise;
+    if (ack?.text?.includes("Connected")) {
+      pass(`joinDmRoom "${TEST_DM_ROOM_ID}" → welcome ack received: "${ack.text}"`);
     } else {
-      fail("joinDmRoom", errReceived);
+      fail("joinDmRoom → welcome ack", JSON.stringify(ack));
     }
   } catch (err) {
     fail("joinDmRoom", err.message);
@@ -259,8 +257,8 @@ async function runTests() {
   let dmSocket2;
   try {
     dmSocket2 = await connect("/chat/dm", TOKEN);
-    dmSocket2.emit("joinDmRoom", TEST_DM_ROOM_ID);
-    await new Promise((r) => setTimeout(r, 500));
+    dmSocket2.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: TEST_DM_ROOM_ID } });
+    await waitForEvent(dmSocket2, "message"); // consume join ack on dmSocket2
 
     const dmPromise = waitForEvent(dmSocket2, "message");
     dmSocket.emit("dmMessage", {

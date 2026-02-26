@@ -19,10 +19,10 @@ interface DmMessageData {
 
 /**
  * Registers direct-message event handlers on the /chat/dm namespace.
- * @param nsp  - The /chat/dm Namespace instance
+ * @param _nsp  - The /chat/dm Namespace instance (currently unused; retained for API consistency)
  * @param socket - The individual authenticated socket connection
  */
-export function handleDmSocket(nsp: Namespace, socket: Socket) {
+export function handleDmSocket(_nsp: Namespace, socket: Socket) {
   socket.on(
     "joinDmRoom",
     async (message: { event: string; data: JoinDmRoomData }) => {

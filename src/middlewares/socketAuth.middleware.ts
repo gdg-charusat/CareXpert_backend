@@ -90,6 +90,7 @@ export function createSocketAuthMiddleware(findUser: FindUserFn = defaultFindUse
 
       next();
     } catch (err) {
+      console.error("[socketAuth] Unexpected middleware error:", err);
       next(new Error("Authentication error: Internal server error"));
     }
   };

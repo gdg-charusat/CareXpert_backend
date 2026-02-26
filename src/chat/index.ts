@@ -31,6 +31,18 @@ export async function setupChatSocket(io: Server): Promise<void> {
     console.error("[Redis Adapter] subClient error:", err)
   );
 
+  // Verify Redis is reachable before attaching the adapter so that
+  // setupChatSocket(io).catch(...) in src/index.ts fails deterministically
+  // rather than silently dropping the connection event.
+  try {
+    await Promise.all([pubClient.ping(), subClient.ping()]);
+  } catch (err) {
+    console.error("[Socket.IO] Failed to connect to Redis for chat adapter:", err);
+    try { pubClient.disconnect(); } catch { /* ignore */ }
+    try { subClient.disconnect(); } catch { /* ignore */ }
+    throw err;
+  }
+
   io.adapter(createAdapter(pubClient, subClient));
   console.log("[Socket.IO] Redis adapter attached");
 
