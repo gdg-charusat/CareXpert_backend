@@ -53,7 +53,7 @@ export function handleDmSocket(_nsp: Namespace, socket: Socket) {
         const { roomId, receiverId, text, image } = message.data;
         // Use server-verified identity — never trust client-supplied senderId/username
         const senderId = socket.data.userId as string;
-        const username = socket.data.name   as string;
+        const username = socket.data.name as string;
 
         let messageData: any = {
           roomId,
@@ -83,7 +83,7 @@ export function handleDmSocket(_nsp: Namespace, socket: Socket) {
         // Mirrors the socket.to() pattern used in roomMessage.
         socket.to(roomId).emit("message", formattedMessage);
 
-        const savedMessage = await prisma.chatMessage.create({
+        await prisma.chatMessage.create({
           data: {
             senderId: senderId,
             receiverId: receiverId,
@@ -93,8 +93,6 @@ export function handleDmSocket(_nsp: Namespace, socket: Socket) {
             imageUrl: image ? formattedMessage.imageUrl : null,
           },
         });
-
-          // ...existing code...
       } catch (error) {
         console.error("Error in dmMessage:", error);
         socket.emit("error", "Failed to send DM message");

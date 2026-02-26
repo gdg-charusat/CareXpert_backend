@@ -37,12 +37,6 @@ Closes #1
 
 **Added documentation** (RATE_LIMITING_IMPLEMENTATION.md, RATE_LIMITING_TEST.md, RATE_LIMITING_ISSUE.md) covering implementation details, testing procedures, and problem description
 
-**Added real-time notifications:**
-- `/notifications` namespace with JWT auth, each user joins their own room.
-- `emitNotificationToUser(io, userId, payload)` utility emits `new_notification` to the user after DB notification creation (e.g., in appointment accept/reject, prescription added).
-- Exposed `io` on the Express app for controller access.
-- No more polling needed for unread notification count.
-
 ## Testing
 - [x] Tested on Desktop (Chrome/Firefox/Safari)
 - [x] Tested on Mobile (iOS/Android)

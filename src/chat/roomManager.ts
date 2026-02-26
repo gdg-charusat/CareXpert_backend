@@ -28,8 +28,8 @@ export function handleRoomSocket(_nsp: Namespace, socket: Socket) {
       try {
         const { roomId } = message.data;
         // Use server-verified identity — never trust client-supplied userId/username
-        const userId   = socket.data.userId as string;
-        const username = socket.data.name   as string;
+        const userId = socket.data.userId as string;
+        const username = socket.data.name as string;
 
         socket.join(roomId);
 
@@ -63,7 +63,7 @@ export function handleRoomSocket(_nsp: Namespace, socket: Socket) {
         const { roomId, text, image } = message.data;
         // Use server-verified identity — never trust client-supplied senderId/username
         const senderId = socket.data.userId as string;
-        const username = socket.data.name   as string;
+        const username = socket.data.name as string;
 
         const messageData = {
           roomId,
