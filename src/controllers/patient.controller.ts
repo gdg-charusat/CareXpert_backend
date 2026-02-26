@@ -15,7 +15,12 @@ import fs from "fs";
 import cacheService from "../utils/cacheService";
 
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
-  const { specialty: specialtyQuery, location: locationQuery } = req.query;
+  const { specialty, location } = req.query;
+
+  const specialtyQuery =
+    typeof specialty === "string" ? specialty.trim() : "";
+  const locationQuery =
+    typeof location === "string" ? location.trim() : "";
 
   try {
     const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
