@@ -38,3 +38,21 @@ PORT=3000
 -check your docker container must be running, check for error if there are none then
 -npx prisma migrate dev (no new migration files must be created,if created then delete the file and use "npx prisma migrate deploy")
 -happy coding
+
+---
+
+## 🔔 Real-time Notifications
+
+- **Namespace:** `/notifications`
+- **Auth:** JWT required (same as chat)
+- **How it works:**  
+  When a notification is created in the backend (e.g., appointment accepted/rejected, prescription added), the server emits a `new_notification` event to the user's room in `/notifications`.  
+  The frontend can listen for this event to update the UI instantly, eliminating the need for polling `/api/notifications/unread-count`.
+
+**Example client usage:**
+```js
+const socket = io("/notifications", { auth: { token: "JWT_HERE" } });
+socket.on("new_notification", (payload) => {
+  // Update UI, show toast, etc.
+});
+```
