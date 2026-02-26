@@ -7,7 +7,7 @@ import { ApiError } from "../utils/ApiError";
 const getGenAI = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set in environment variables');
+    throw new Error("GEMINI_API_KEY is not set in environment variables");
   }
   return new GoogleGenerativeAI(apiKey);
 };
@@ -18,6 +18,17 @@ interface GeminiResponse {
   recommendation: string;
   disclaimer: string;
 }
+
+const isGeminiQuotaOrRateLimitError = (error: any): boolean => {
+  const status = error?.status;
+  const text = String(error?.message || "").toLowerCase();
+
+  return (
+    status === 429 ||
+    text.includes("too many requests") ||
+    text.includes("quota exceeded")
+  );
+};
 
 export const processSymptoms = async (req: any, res: any) => {
   try {
@@ -72,7 +83,6 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
 
     let parsedResponse: GeminiResponse;
     try {
-      
       const cleanedResponse = aiResponseText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
@@ -95,14 +105,14 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
     }
 
     if (!["mild", "moderate", "severe"].includes(parsedResponse.severity)) {
-      parsedResponse.severity = "moderate"; 
+      parsedResponse.severity = "moderate";
     }
 
     const aiChat = await prisma.aiChat.create({
       data: {
         userId,
         userMessage: symptoms.trim(),
-        aiResponse: parsedResponse as any, 
+        aiResponse: parsedResponse as any,
         probableCauses: parsedResponse.probable_causes,
         severity: parsedResponse.severity,
         recommendation: parsedResponse.recommendation,
@@ -116,11 +126,24 @@ Important: Respond with ONLY the JSON object, no additional text or formatting.`
         new ApiResponse(
           200,
           parsedResponse,
-          "AI analysis completed successfully"
-        )
+          "AI analysis completed successfully",
+        ),
       );
   } catch (error) {
     console.error("Error in processSymptoms:", error);
+
+    if (isGeminiQuotaOrRateLimitError(error)) {
+      return res.status(503).json(
+        new ApiResponse(
+          503,
+          {
+            provider: "gemini",
+            reason: "quota_or_rate_limited",
+          },
+          "AI service is temporarily unavailable due to quota limits. Please try again shortly.",
+        ),
+      );
+    }
 
     if (error instanceof ApiError) {
       res
@@ -179,8 +202,8 @@ export const getChatHistory = async (req: any, res: any) => {
             pages: Math.ceil(total / limitNum),
           },
         },
-        "Chat history retrieved successfully"
-      )
+        "Chat history retrieved successfully",
+      ),
     );
   } catch (error) {
     console.error("Error in getChatHistory:", error);
