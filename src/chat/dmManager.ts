@@ -78,13 +78,6 @@ export function handleDmSocket(_nsp: Namespace, socket: Socket) {
         }
 
         const formattedMessage = formatMessage(messageData);
-        console.log("DM Message Data:", {
-          senderId,   // verified via JWT
-          receiverId,
-          roomId,
-          message: text,
-          messageType: image ? "IMAGE" : "TEXT",
-        });
 
         // Exclude the sender: they already have the message locally.
         // Mirrors the socket.to() pattern used in roomMessage.
@@ -101,7 +94,7 @@ export function handleDmSocket(_nsp: Namespace, socket: Socket) {
           },
         });
 
-        console.log("DM Message saved successfully:", savedMessage.id);
+          // ...existing code...
       } catch (error) {
         console.error("Error in dmMessage:", error);
         socket.emit("error", "Failed to send DM message");
