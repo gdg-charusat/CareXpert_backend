@@ -18,7 +18,10 @@ export const authorizeReportAccess = async (
       return next(new AppError("Report id is required", 400));
     }
 
-    const report = await prisma.report.findUnique({ where: { id: reportId } });
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: { patient: true },
+    });
     if (!report) {
       return next(new AppError("Report not found", 404));
     }

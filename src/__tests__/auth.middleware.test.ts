@@ -28,7 +28,9 @@ describe("auth.middleware", () => {
     app = express();
     app.use(isAuthenticated);
     // simple route to echo req.user
-    app.get("/whoami", (req: any, res) => res.json({ user: req.user }));
+    app.get("/whoami", (req: any, res) => {
+      res.json({ user: req.user });
+    });
   });
 
   it("should populate user object including admin permissions", async () => {

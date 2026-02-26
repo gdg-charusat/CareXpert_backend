@@ -90,12 +90,20 @@ describe("report authorization middleware", () => {
     const next = buildNext();
 
     await handle(req, res, next);
+    expect(mockedPrisma.report.findUnique).toHaveBeenCalledWith({
+      where: { id: "r1" },
+      include: { patient: true },
+    });
     expect(next).toHaveBeenCalledWith(expect.any(AppError));
     expect((next as jest.Mock).mock.calls[0][0].statusCode).toBe(404);
   });
 
   it("forbids patient from viewing another patient's report", async () => {
-    (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue({ id: "r1", patientId: "p2" } as any);
+    (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue({
+      id: "r1",
+      patientId: "p2",
+      patient: { id: "p2" },
+    } as any);
     const user = { role: "PATIENT", patient: { id: "p1" } };
     const req = buildReq(user, { id: "r1" });
     const res = buildRes();
@@ -107,7 +115,7 @@ describe("report authorization middleware", () => {
   });
 
   it("allows patient to view own report", async () => {
-    const reportData = { id: "r1", patientId: "p1" } as any;
+    const reportData = { id: "r1", patientId: "p1", patient: { id: "p1" } } as any;
     (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue(reportData);
     const user = { role: "PATIENT", patient: { id: "p1" } };
     const req = buildReq(user, { id: "r1" });
@@ -119,7 +127,7 @@ describe("report authorization middleware", () => {
   });
 
   it("forbids doctor with no relationship", async () => {
-    const reportData = { id: "r1", patientId: "pX" } as any;
+    const reportData = { id: "r1", patientId: "pX", patient: { id: "pX" } } as any;
     (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue(reportData);
     (mockedPrisma.appointment.findFirst as unknown as jest.Mock).mockResolvedValue(null as any);
     const user = { role: "DOCTOR", doctor: { id: "d1" } };
@@ -137,7 +145,7 @@ describe("report authorization middleware", () => {
   });
 
   it("allows doctor with appointment", async () => {
-    const reportData = { id: "r1", patientId: "pX" } as any;
+    const reportData = { id: "r1", patientId: "pX", patient: { id: "pX" } } as any;
     (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue(reportData);
     (mockedPrisma.appointment.findFirst as unknown as jest.Mock).mockResolvedValue({ id: "a1" } as any);
     const user = { role: "DOCTOR", doctor: { id: "d1" } };
@@ -150,7 +158,7 @@ describe("report authorization middleware", () => {
   });
 
   it("forbids admin lacking permission", async () => {
-    const reportData = { id: "r1", patientId: "pX" } as any;
+    const reportData = { id: "r1", patientId: "pX", patient: { id: "pX" } } as any;
     (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue(reportData);
     const user = { role: "ADMIN", admin: { permissions: { canViewReports: false } } };
     const req = buildReq(user, { id: "r1" });
@@ -163,7 +171,7 @@ describe("report authorization middleware", () => {
   });
 
   it("allows admin with permission", async () => {
-    const reportData = { id: "r1", patientId: "pX" } as any;
+    const reportData = { id: "r1", patientId: "pX", patient: { id: "pX" } } as any;
     (mockedPrisma.report.findUnique as unknown as jest.Mock).mockResolvedValue(reportData);
     const user = { role: "ADMIN", admin: { permissions: { canViewReports: true } } };
     const req = buildReq(user, { id: "r1" });
