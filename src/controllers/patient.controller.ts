@@ -34,19 +34,19 @@ const searchDoctors = async (req: any, res: Response) => {
         AND: [
           specialty
             ? {
-                specialty: {
-                  contains: specialty as string,
-                  mode: "insensitive", // Case-insensitive search
-                },
-              }
+              specialty: {
+                contains: specialty as string,
+                mode: "insensitive", // Case-insensitive search
+              },
+            }
             : {},
           location
             ? {
-                clinicLocation: {
-                  contains: location as string,
-                  mode: "insensitive", // Case-insensitive search
-                },
-              }
+              clinicLocation: {
+                contains: location as string,
+                mode: "insensitive", // Case-insensitive search
+              },
+            }
             : {},
         ],
       },
@@ -61,10 +61,10 @@ const searchDoctors = async (req: any, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, doctors));
+    return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
     // console.error("Error in searchDoctors:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
@@ -155,9 +155,9 @@ const availableTimeSlots = async (req: any, res: Response): Promise<void> => {
       location: slot.doctor.clinicLocation,
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedSlots));
+    return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
-    res.status(400).json(new ApiError(400, "Internal Server Error", [error]));
+    return res.status(400).json(new ApiError(400, "Internal Server Error", [error]));
   }
 };
 

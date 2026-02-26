@@ -136,7 +136,7 @@ const signup = async (req: Request, res: any) => {
         }
       } else {
         await prisma.patient.create({
-          data: { 
+          data: {
             userId: user.id,
             location: location || null,
           },
@@ -346,7 +346,7 @@ const doctorProfile = async (req: Request, res: Response) => {
     const { id } = (req as any).params;
 
     if (!id || !isValidUUID(id)) {
-      res.status(400).json(new ApiError(400, "Doctor id not found"));
+      return res.status(400).json(new ApiError(400, "Doctor id not found"));
     }
 
     const doctor = await prisma.doctor.findUnique({
@@ -364,10 +364,9 @@ const doctorProfile = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, doctor));
+    return res.status(200).json(new ApiResponse(200, doctor));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
-    return;
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
@@ -376,7 +375,7 @@ const userProfile = async (req: Request, res: Response) => {
     const { id } = (req as any).params;
 
     if (!id || !isValidUUID(id)) {
-      res.status(400).json(new ApiError(400, "patient id no valid"));
+      return res.status(400).json(new ApiError(400, "patient id no valid"));
     }
 
     const patient = await prisma.patient.findUnique({
@@ -425,12 +424,11 @@ const updatePatientProfile = async (req: any, res: Response) => {
       },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, user, "Profile updated successfulyy"));
-    return;
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -588,7 +586,7 @@ const getNotifications = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -597,18 +595,18 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     const unreadCount = await prisma.notification.count({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(200, { unreadCount }, "Unread count fetched successfully")
     );
   } catch (error) {
     console.error("Error fetching unread count:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -618,7 +616,7 @@ const markNotificationAsRead = async (req: any, res: Response) => {
     const { notificationId } = req.params;
 
     const notification = await prisma.notification.updateMany({
-      where: { 
+      where: {
         id: notificationId,
         userId,
       },
@@ -630,12 +628,12 @@ const markNotificationAsRead = async (req: any, res: Response) => {
       return;
     }
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(200, {}, "Notification marked as read")
     );
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -644,19 +642,19 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
     const userId = (req as any).user?.id;
 
     await prisma.notification.updateMany({
-      where: { 
+      where: {
         userId,
         isRead: false,
       },
       data: { isRead: true },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(200, {}, "All notifications marked as read")
     );
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -715,7 +713,7 @@ const getCommunityMembers = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching community members:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -758,12 +756,12 @@ const joinCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(200, {}, "Successfully joined the community")
     );
   } catch (error) {
     console.error("Error joining community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -791,12 +789,12 @@ const leaveCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(200, {}, "Successfully left the community")
     );
   } catch (error) {
     console.error("Error leaving community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 

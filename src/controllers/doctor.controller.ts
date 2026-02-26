@@ -79,9 +79,9 @@ const viewDoctorAppointment = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
@@ -230,15 +230,15 @@ const addTimeslot = async (req: Request, res: Response) => {
       });
     });
 
-    res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
+    return res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
 const generateBulkTimeSlots = async (req: Request, res: Response) => {
   const { startDate, endDate, startTime, endTime, durationInMinutes } = req.body;
-  
+
   if (!startDate || !endDate || !startTime || !endTime || !durationInMinutes) {
     res.status(400).json(new ApiError(400, "All fields are required: startDate, endDate, startTime, endTime, durationInMinutes"));
     return;
@@ -263,7 +263,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json(new ApiError(400, "Invalid date format"));
       return;
@@ -289,7 +289,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
     // Loop through each date
     while (currentDate <= end) {
       const dateStr = currentDate.toISOString().split('T')[0];
-      
+
       // Generate timeslots for this date
       let currentMinutes = startHour * 60 + startMinute;
       const endMinutes = endHour * 60 + endMinute;
@@ -303,7 +303,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
         const slotStart = new Date(dateStr);
         slotStart.setHours(slotStartHour, slotStartMinute, 0, 0);
-        
+
         const slotEnd = new Date(dateStr);
         slotEnd.setHours(slotEndHour, slotEndMinute, 0, 0);
 
@@ -351,7 +351,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
       skippedSlots
     }));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -447,9 +447,9 @@ const viewTimeslots = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, timeSlots));
+    return res.status(200).json(new ApiResponse(200, timeSlots));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
@@ -1030,11 +1030,11 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         prescriptionId: prescription.id,
         notes: notes || undefined,
       },
-      select : {
-        id : true,
-        patient : {
-          select : {
-            userId : true
+      select: {
+        id: true,
+        patient: {
+          select: {
+            userId: true
           }
         }
       }
