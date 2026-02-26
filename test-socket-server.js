@@ -1,103 +1,98 @@
 /**
  * test-socket-server.js
  *
- * A lightweight in-process test server that validates the NEW Socket.IO
- * architecture (namespaces + JWT auth middleware) WITHOUT needing a real
- * database or Redis connection.
+ * In-process Socket.IO test server that exercises the REAL production
+ * authentication middleware (socketAuth.middleware.ts) with a mock data
+ * store injected via the createSocketAuthMiddleware factory.
  *
- * It uses the same JWT-verify logic as socketAuth.middleware.ts but with a
- * local mock user store, so the entire test runs with zero external services.
+ * No local re-implementation of auth logic exists here — if the production
+ * middleware changes, these tests will immediately reflect it.
  *
- * Usage:  node test-socket-server.js
+ * Usage:  node test-socket-server.js  (or: npm run test:socket)
  *
  * The script:
- *   1. Starts an Express + Socket.IO server on PORT 3001 (or TEST_PORT env var)
- *   2. Registers /chat/room and /chat/dm namespaces with auth middleware
- *   3. Runs all scenarios automatically and prints a pass/fail summary
- *   4. Exits with code 0 (all pass) or 1 (any fail)
+ *   1. Registers ts-node so the real TypeScript middleware can be imported
+ *   2. Starts an in-process Socket.IO server on port 3099 (TEST_PORT env)
+ *   3. Injects a mock findUser into createSocketAuthMiddleware
+ *   4. Runs all scenarios and exits 0 (pass) or 1 (fail)
  */
 
-const http   = require("http");
-const jwt    = require("jsonwebtoken");
+const http = require("http");
+const jwt  = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const { io: socketClient } = require("socket.io-client");
 
-// ─── Shared secret for this test run ────────────────────────────────────────
-const TEST_SECRET  = "carexpert-test-secret-2026";
-const TEST_PORT    = process.env.TEST_PORT || 3099;
-const BASE_URL     = `http://localhost:${TEST_PORT}`;
+// ─── Shared secret injected before importing the production middleware ────────
+const TEST_SECRET = "carexpert-test-secret-2026";
+process.env.ACCESS_TOKEN_SECRET = TEST_SECRET;
 
-// ─── Mock users ─────────────────────────────────────────────────────────────
+const path = require("path");
+
+// Register ts-node so we can require() TypeScript source files directly
+require("ts-node").register({
+  transpileOnly: true,          // skip type-checking for speed
+  compilerOptions: { module: "commonjs" },
+});
+
+// Stub prismClient.ts in the module cache BEFORE any file that imports it is
+// loaded.  The production middleware's actual DB call is already replaced by
+// mockFindUser (injected via the factory), so the real Prisma instance is
+// never invoked during tests.  This prevents the need for `prisma generate`
+// or a live database connection.
+const prismClientPath = path.resolve(__dirname, "src", "utils", "prismClient.ts");
+require.cache[prismClientPath] = {
+  id: prismClientPath,
+  filename: prismClientPath,
+  loaded: true,
+  exports: { default: {} }, // empty stub — never called in tests
+};
+
+// Import the REAL production factory — no local copy of the logic
+const { createSocketAuthMiddleware } = require("./src/middlewares/socketAuth.middleware");
+
+const TEST_PORT = process.env.TEST_PORT || 3099;
+const BASE_URL  = `http://localhost:${TEST_PORT}`;
+
+// ─── Mock user store (replaces the Prisma DB call only) ──────────────────────
 const MOCK_USER = {
   id:           "user-test-001",
   name:         "Test User",
   role:         "PATIENT",
   tokenVersion: 1,
-  deletedAt:    null,
 };
 
-// Token for an EXISTING active user
+/**
+ * Mock findUser — injected into the real middleware factory.
+ * Returns MOCK_USER for the known test id, null for everyone else.
+ * The authentication logic (JWT parsing, header extraction, tokenVersion
+ * checking, error messages) is all exercised from the production source.
+ */
+async function mockFindUser(userId) {
+  return userId === MOCK_USER.id ? { ...MOCK_USER } : null;
+}
+
+// Tokens signed with TEST_SECRET (same value injected into ACCESS_TOKEN_SECRET)
 const VALID_TOKEN = jwt.sign(
   { userId: MOCK_USER.id, tokenVersion: MOCK_USER.tokenVersion },
   TEST_SECRET,
   { expiresIn: "1h" }
 );
 
-// Token belongs to a deleted / non-existent user
+// Token for a user that does not exist in the mock store
 const GHOST_TOKEN = jwt.sign(
   { userId: "user-ghost-999", tokenVersion: 1 },
   TEST_SECRET,
   { expiresIn: "1h" }
 );
 
-// Token with wrong tokenVersion (e.g. after logout)
+// Token with wrong tokenVersion (simulates post-logout invalidation)
 const STALE_TOKEN = jwt.sign(
-  { userId: MOCK_USER.id, tokenVersion: 0 },          // version mismatch
+  { userId: MOCK_USER.id, tokenVersion: 0 },
   TEST_SECRET,
   { expiresIn: "1h" }
 );
 
-// ─── Mock socketAuth middleware (mirrors src/middlewares/socketAuth.middleware.ts)
-function socketAuthMiddleware(socket, next) {
-  try {
-    const authToken   = socket.handshake.auth?.token;
-    const headerToken = socket.handshake.headers?.authorization?.replace("Bearer ", "");
-    const token       = authToken || headerToken;
-
-    if (!token) {
-      return next(new Error("Authentication error: No token provided"));
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, TEST_SECRET);
-    } catch {
-      return next(new Error("Authentication error: Invalid or expired token"));
-    }
-
-    // Simulate DB lookup
-    const user = decoded.userId === MOCK_USER.id ? MOCK_USER : null;
-    if (!user) {
-      return next(new Error("Authentication error: User not found"));
-    }
-
-    if (
-      decoded.tokenVersion !== undefined &&
-      decoded.tokenVersion !== user.tokenVersion
-    ) {
-      return next(new Error("Authentication error: Token has been invalidated"));
-    }
-
-    socket.data.userId = user.id;
-    socket.data.name   = user.name;
-    socket.data.role   = user.role;
-    next();
-  } catch {
-    next(new Error("Authentication error: Internal server error"));
-  }
-}
-
-// ─── Build Server ────────────────────────────────────────────────────────────
+// ─── Build server using the REAL middleware with mock data store ──────────────
 const app        = require("express")();
 const httpServer = http.createServer(app);
 const io         = new Server(httpServer, { cors: { origin: "*" }, transports: ["websocket"] });
@@ -105,8 +100,9 @@ const io         = new Server(httpServer, { cors: { origin: "*" }, transports: [
 const roomNsp = io.of("/chat/room");
 const dmNsp   = io.of("/chat/dm");
 
-roomNsp.use(socketAuthMiddleware);
-dmNsp.use(socketAuthMiddleware);
+// createSocketAuthMiddleware is the production factory — only findUser is mocked
+roomNsp.use(createSocketAuthMiddleware(mockFindUser));
+dmNsp.use(createSocketAuthMiddleware(mockFindUser));
 
 roomNsp.on("connection", (socket) => {
   socket.on("joinRoom", (msg) => {
