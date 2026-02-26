@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { authorizeReportAccess } from "../middlewares/authorization.middleware";
 import { createReport, getReport } from "../controllers/report.controller";
 import { upload2 } from "../middlewares/upload";
 import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
@@ -22,6 +23,12 @@ router.post(
   asyncHandler(createReport)
 );
 
-router.get("/:id", isAuthenticated, globalRateLimiter, asyncHandler(getReport));
+router.get(
+  "/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  authorizeReportAccess,
+  asyncHandler(getReport)
+);
 
 export default router;

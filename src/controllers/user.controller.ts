@@ -402,6 +402,8 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // allow report access by default for new admin accounts
+            canViewReports: true,
             canManageSystem: true,
           },
         },
