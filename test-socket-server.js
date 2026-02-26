@@ -131,15 +131,24 @@ roomNsp.on("connection", (socket) => {
 });
 
 dmNsp.on("connection", (socket) => {
-  socket.on("joinDmRoom", (roomId) => {
+  // Mirrors the joinRoom envelope: { event, data: { roomId } }
+  socket.on("joinDmRoom", (msg) => {
+    const { roomId } = msg.data || {};
     socket.join(roomId);
+    // Acknowledge back to the joiner — silent to others (private conversation)
+    socket.emit("message", {
+      username: "CareXpert Bot",
+      text: `Connected to DM room.`,
+      roomId,
+      createdAt: new Date(),
+    });
   });
 
   socket.on("dmMessage", (msg) => {
     const { roomId, text } = msg.data || {};
-    // Use server-verified identity — never trust client-supplied username/senderId
+    // Exclude sender — mirrors roomMessage's socket.to() pattern
     const username = socket.data.name;
-    dmNsp.to(roomId).emit("message", { text, username, createdAt: new Date() });
+    socket.to(roomId).emit("message", { text, username, createdAt: new Date() });
   });
 });
 
@@ -261,24 +270,40 @@ async function run() {
   if (dmS?.connected) {
     const DM_ROOM = "dm-alpha-beta";
 
+    // joinDmRoom: verify the welcome ack is received (mirrors joinRoom behaviour)
     try {
-      let err = null;
-      dmS.once("error", (e) => (err = e));
-      dmS.emit("joinDmRoom", DM_ROOM);
-      await new Promise((r) => setTimeout(r, 300));
-      !err ? ok(`joinDmRoom "${DM_ROOM}" → no error emitted`) : no("joinDmRoom", err);
-    } catch (e) { no("joinDmRoom", e.message); }
+      const ackPromise = waitFor(dmS, "message");
+      dmS.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
+      const ack = await ackPromise;
+      ack?.text?.includes("Connected") ?
+        ok(`joinDmRoom "${DM_ROOM}" → welcome ack received: "${ack.text}"`) :
+        no("joinDmRoom → welcome ack", JSON.stringify(ack));
+    } catch (e) { no("joinDmRoom → welcome ack", e.message); }
 
+    // dmMessage: verify delivery to second socket; verify sender is NOT echoed
     let dmS2;
     try {
       dmS2 = await connect("/chat/dm", VALID_TOKEN);
-      dmS2.emit("joinDmRoom", DM_ROOM);
-      await new Promise((r) => setTimeout(r, 300));
+      dmS2.emit("joinDmRoom", { event: "joinDmRoom", data: { roomId: DM_ROOM } });
+      await waitFor(dmS2, "message");  // consume the join ack on dmS2
+
+      // Track whether the sender receives an unwanted echo
+      let senderEcho = null;
+      dmS.once("message", (m) => (senderEcho = m));
 
       const msgPromise = waitFor(dmS2, "message");
-      dmS.emit("dmMessage", { event: "dmMessage", data: { roomId: DM_ROOM, senderId: MOCK_USER.id, receiverId: "user-receiver-002", username: "TestUser", text: "DM namespace test!" } });
+      dmS.emit("dmMessage", { event: "dmMessage", data: { roomId: DM_ROOM, receiverId: "user-receiver-002", text: "DM namespace test!" } });
       const m = await msgPromise;
-      m?.text === "DM namespace test!" ? ok(`dmMessage → received on second socket: "${m.text}"`) : no("dmMessage → received", JSON.stringify(m));
+
+      m?.text === "DM namespace test!" ?
+        ok(`dmMessage → received on second socket: "${m.text}"`) :
+        no("dmMessage → received", JSON.stringify(m));
+
+      // Confirm sender exclusion (give 200 ms for any accidental echo to arrive)
+      await new Promise((r) => setTimeout(r, 200));
+      senderEcho === null ?
+        ok("dmMessage → sender is NOT echoed (socket.to behaviour)") :
+        no("dmMessage → sender exclusion", `sender received echo: ${JSON.stringify(senderEcho)}`);
     } catch (e) { no("dmMessage → received on second socket", e.message); }
     finally { dmS2?.disconnect(); }
   }

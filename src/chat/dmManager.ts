@@ -3,6 +3,11 @@ import { formatMessage } from "./utils";
 import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
 
+interface JoinDmRoomData {
+  // Mirrors the JoinRoomData envelope used in roomManager for consistency.
+  roomId: string;
+}
+
 interface DmMessageData {
   roomId: string;
   // senderId and username are intentionally omitted — the server derives
@@ -18,16 +23,28 @@ interface DmMessageData {
  * @param socket - The individual authenticated socket connection
  */
 export function handleDmSocket(nsp: Namespace, socket: Socket) {
-  socket.on("joinDmRoom", async (roomId: string) => {
-    try {
-      
-      socket.join(roomId);
+  socket.on(
+    "joinDmRoom",
+    async (message: { event: string; data: JoinDmRoomData }) => {
+      try {
+        const { roomId } = message.data;
 
-    } catch (error) {
-      console.error("Error in joinDmRoom:", error);
-      socket.emit("error", "Failed to join DM room");
+        socket.join(roomId);
+
+        // Acknowledge the join back to the connecting socket (mirrors joinRoom behaviour).
+        // No broadcast to the DM partner — joining a private conversation is silent to others.
+        socket.emit("message", {
+          username: "CareXpert Bot",
+          text: `Connected to DM room.`,
+          roomId,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Error in joinDmRoom:", error);
+        socket.emit("error", "Failed to join DM room");
+      }
     }
-  });
+  );
 
   socket.on(
     "dmMessage",
@@ -69,7 +86,9 @@ export function handleDmSocket(nsp: Namespace, socket: Socket) {
           messageType: image ? "IMAGE" : "TEXT",
         });
 
-        nsp.to(roomId).emit("message", formattedMessage);
+        // Exclude the sender: they already have the message locally.
+        // Mirrors the socket.to() pattern used in roomMessage.
+        socket.to(roomId).emit("message", formattedMessage);
 
         const savedMessage = await prisma.chatMessage.create({
           data: {
