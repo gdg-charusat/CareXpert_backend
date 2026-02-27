@@ -1121,7 +1121,8 @@ const forgotPassword = async (req: Request, res: Response, next: NextFunction) =
 
     // If user doesn't exist, still return success to prevent email enumeration
     if (!user) {
-      return res.status(200).json(new ApiResponse(200, genericResponse));
+      res.status(200).json(new ApiResponse(200, genericResponse));
+      return;
     }
 
     // Generate secure reset token (32 bytes = 64 hex characters)
@@ -1152,7 +1153,8 @@ const forgotPassword = async (req: Request, res: Response, next: NextFunction) =
       // But the email won't be sent - admin should check logs
     }
 
-    return res.status(200).json(new ApiResponse(200, genericResponse));
+    res.status(200).json(new ApiResponse(200, genericResponse));
+    return;
   } catch (error) {
     console.error("Error in forgot password:", error);
     return next(new AppError("Failed to process password reset request", 500));
@@ -1222,7 +1224,8 @@ const resetPassword = async (req: Request, res: Response, next: NextFunction) =>
       console.error("Failed to send password reset confirmation email:", emailError);
     }
 
-    return res.status(200).json(new ApiResponse(200, "Password reset successful"));
+    res.status(200).json(new ApiResponse(200, "Password reset successful"));
+    return;
   } catch (error) {
     console.error("Error in reset password:", error);
     return next(new AppError("Failed to reset password", 500));
