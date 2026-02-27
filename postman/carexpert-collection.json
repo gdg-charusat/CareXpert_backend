@@ -922,6 +922,230 @@
             },
             "description": "Mark notification as read"
           }
+        },
+        {
+          "name": "Create Prescription Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Type 2 Diabetes Management\",\n  \"description\": \"Standard prescription for newly diagnosed Type 2 diabetes patients\",\n  \"prescriptionText\": \"1. Metformin 500mg - Take 1 tablet twice daily with meals\\n2. Regular blood glucose monitoring\\n3. Follow up in 2 weeks\",\n  \"tags\": [\"diabetes\", \"chronic-care\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ]
+            },
+            "description": "Create a new prescription template with name, description, prescription text, and tags"
+          }
+        },
+        {
+          "name": "Get All Prescription Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates?isActive=true&tag=diabetes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ],
+              "query": [
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "description": "Filter by active status"
+                },
+                {
+                  "key": "tag",
+                  "value": "diabetes",
+                  "description": "Filter by specific tag"
+                }
+              ]
+            },
+            "description": "Get all prescription templates for logged-in doctor with optional filters by tag and active status"
+          }
+        },
+        {
+          "name": "Get Prescription Template by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Get a specific prescription template by ID"
+          }
+        },
+        {
+          "name": "Update Prescription Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Template Name\",\n  \"description\": \"Updated description\",\n  \"prescriptionText\": \"Updated prescription text\",\n  \"tags\": [\"updated\", \"tags\"],\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Update an existing prescription template (all fields are optional)"
+          }
+        },
+        {
+          "name": "Delete/Deactivate Prescription Template",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId?permanent=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ],
+              "query": [
+                {
+                  "key": "permanent",
+                  "value": "false",
+                  "description": "If true, permanently delete; otherwise deactivate (soft delete)"
+                }
+              ]
+            },
+            "description": "Delete or deactivate a prescription template. Use permanent=true to delete permanently, otherwise it will be deactivated (isActive=false)"
+          }
+        },
+        {
+          "name": "Use Template for Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"patient-uuid-here\",\n  \"customizedText\": \"Customized prescription text based on template\",\n  \"appointmentId\": \"appointment-uuid-here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId/use",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId",
+                "use"
+              ]
+            },
+            "description": "Use a prescription template to create a prescription for a patient. Can customize the text and link to an appointment. Sends email notification to patient."
+          }
+        },
+        {
+          "name": "Get Prescription Template Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                "tags"
+              ]
+            },
+            "description": "Get all unique tags from doctor's prescription templates for filtering"
+          }
         }
       ]
     },
