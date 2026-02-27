@@ -39,35 +39,35 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  updateAppointmentStatus
+  updateAppointmentStatus as any
 );
 router.patch(
   "/cancel-appointment/:appointmentId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  cancelAppointment
+  cancelAppointment as any
 );
 router.get(
   "/patient-history/:patientId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getPatientHistory
+  getPatientHistory as any
 );
 router.patch(
   "/update-timeSlot/:timeSlotID",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  updateTimeSlot
+  updateTimeSlot as any
 );
 router.delete(
   "/delete-timeSlot/:timeSlotId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  deleteTimeSlot
+  deleteTimeSlot as any
 );
 
 router.get("/city-rooms", isAuthenticated, globalRateLimiter, isDoctor, cityRooms);
@@ -86,7 +86,7 @@ router.get(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getPendingAppointmentRequests
+  getPendingAppointmentRequests as any
 );
 
 router.patch(
@@ -94,7 +94,7 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  respondToAppointmentRequest
+  respondToAppointmentRequest as any
 );
 
 router.post(
@@ -102,14 +102,14 @@ router.post(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  addPrescriptionToAppointment
+  addPrescriptionToAppointment as any
 );
 router.patch(
   "/appointments/:appointmentId/complete",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  markAppointmentCompleted
+  markAppointmentCompleted as any
 );
 
 router.get(
@@ -117,7 +117,7 @@ router.get(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getDoctorNotifications
+  getDoctorNotifications as any
 );
 
 router.patch(
@@ -125,7 +125,7 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  markNotificationAsRead
+  markNotificationAsRead as any
 );
 router.get(
   "/prescriptions",

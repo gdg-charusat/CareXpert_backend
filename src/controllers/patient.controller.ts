@@ -23,6 +23,18 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
   const locationQuery =
     typeof location === "string" ? location.trim() : "";
 
+  // Input validation
+  if (!specialtyQuery && !locationQuery) {
+    return res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "At least one search parameter (specialty or location) is required"
+        )
+      );
+  }
+
   try {
     const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
     const cached = await cacheService.get(cacheKey);

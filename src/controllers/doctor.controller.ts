@@ -977,6 +977,11 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       ),
     }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
+    const io = req.app.get("io");
+    if (io && notification?.userId) {
+      emitNotificationToUser(io, notification.userId, notification);
+    }
+
     return res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,
       notification,
@@ -1101,9 +1106,7 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         }
       }
     });
-    console.log(updatedAppointment)
-
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: updatedAppointment.patient.userId,
         type: "PRESCRIPTION_ADDED",
@@ -1112,6 +1115,11 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         appointmentId: appointment.id,
       },
     });
+
+    const io = req.app.get("io");
+    if (io && notification?.userId) {
+      emitNotificationToUser(io, notification.userId, notification);
+    }
 
     return res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
   } catch (error) {
