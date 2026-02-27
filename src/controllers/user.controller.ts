@@ -24,10 +24,11 @@ const generateToken = async (userId: string) => {
 
     const accessToken = generateAccessToken(userId, user.tokenVersion);
     const refreshToken = generateRefreshToken(userId, user.tokenVersion);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     await prisma.user.update({
       where: { id: userId },
-      data: { refreshToken },
+      data: { refreshToken: hashedRefreshToken },
     });
 
     return { accessToken, refreshToken };
@@ -569,7 +570,18 @@ const refreshAccessToken = async (req: any, res: any) => {
       return res.status(401).json(new ApiError(401, "User not found"));
     }
 
-    if (user.refreshToken !== incomingRefreshToken) {
+    if (!user.refreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token has been revoked"));
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      incomingRefreshToken,
+      user.refreshToken
+    );
+
+    if (!isRefreshTokenValid) {
       return res
         .status(401)
         .json(new ApiError(401, "Refresh token has been revoked"));
