@@ -17,29 +17,33 @@ import {
   markAllNotificationsAsRead,
 } from "../controllers/patient.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { isPatient } from "../utils/helper";
 import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();
 
-router.get("/search-doctors", isAuthenticated, globalRateLimiter, searchDoctors as any);
+router.get("/search-doctors", isAuthenticated, globalRateLimiter, isPatient, searchDoctors as any);
 router.get(
   "/:doctorId/timeSlots",
   isAuthenticated,
   globalRateLimiter,
+  isPatient,
   availableTimeSlots
 );
-router.post("/book-appointment", isAuthenticated, globalRateLimiter, bookAppointment);
+router.post("/book-appointment", isAuthenticated, globalRateLimiter, isPatient, bookAppointment);
 
 router.get(
   "/upcoming-appointments",
   isAuthenticated,
   globalRateLimiter,
+  isPatient,
   getUpcomingAppointments
 );
 router.get(
   "/past-appointments",
   isAuthenticated,
   globalRateLimiter,
+  isPatient,
   getPastAppointments
 );
 
@@ -47,6 +51,7 @@ router.patch(
   "/cancel-appointment/:appointmentId",
   isAuthenticated,
   globalRateLimiter,
+  isPatient,
   cancelAppointment as any
 );
 
@@ -54,17 +59,18 @@ router.get(
   "/view-Prescriptions",
   isAuthenticated,
   globalRateLimiter,
+  isPatient,
   viewPrescriptions as any
 );
 router.get("/prescription-pdf/:id", prescriptionPdf as any);
 router.get("/fetchAllDoctors", fetchAllDoctors);
-router.get("/city-rooms", isAuthenticated, globalRateLimiter, cityRooms as any);
+router.get("/city-rooms", isAuthenticated, globalRateLimiter, isPatient, cityRooms as any);
 
-router.post("/book-direct-appointment", isAuthenticated, globalRateLimiter, bookDirectAppointment);
-router.get("/all-appointments", isAuthenticated, globalRateLimiter, getAllPatientAppointments);
+router.post("/book-direct-appointment", isAuthenticated, globalRateLimiter, isPatient, bookDirectAppointment);
+router.get("/all-appointments", isAuthenticated, globalRateLimiter, isPatient, getAllPatientAppointments);
 
-router.get("/notifications", isAuthenticated, globalRateLimiter, getPatientNotifications);
-router.patch("/notifications/:notificationId/read", isAuthenticated, globalRateLimiter, markNotificationAsRead);
-router.patch("/notifications/mark-all-read", isAuthenticated, globalRateLimiter, markAllNotificationsAsRead);
+router.get("/notifications", isAuthenticated, globalRateLimiter, isPatient, getPatientNotifications);
+router.patch("/notifications/:notificationId/read", isAuthenticated, globalRateLimiter, isPatient, markNotificationAsRead);
+router.patch("/notifications/mark-all-read", isAuthenticated, globalRateLimiter, isPatient, markAllNotificationsAsRead);
 
 export default router;
