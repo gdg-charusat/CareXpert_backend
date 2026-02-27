@@ -90,20 +90,21 @@ model Patient {
 }
 
 model Doctor {
-  id             String           @id @default(uuid())
-  userId         String           @unique
-  specialty      String
-  clinicLocation String
-  experience     String?          @default("0")
-  education      String?
-  bio            String?
-  languages      String[]
-  isVerified     Boolean          @default(false)
-  appointments   Appointment[]    @relation("DoctorAppointments")
-  prescriptions  Prescription[]
-  patientHistory PatientHistory[]
-  timeSlots      TimeSlot[]
-  blockedDates   BlockedDate[]
+  id                     String                   @id @default(uuid())
+  userId                 String                   @unique
+  specialty              String
+  clinicLocation         String
+  experience             String?                  @default("0")
+  education              String?
+  bio                    String?
+  languages              String[]
+  isVerified             Boolean                  @default(false)
+  appointments           Appointment[]            @relation("DoctorAppointments")
+  prescriptions          Prescription[]
+  patientHistory         PatientHistory[]
+  timeSlots              TimeSlot[]
+  blockedDates           BlockedDate[]
+  prescriptionTemplates  PrescriptionTemplate[]
 
   user User @relation("DoctorUser", fields: [userId], references: [id])
 }
@@ -303,4 +304,21 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([createdAt])
+}
+
+model PrescriptionTemplate {
+  id               String   @id @default(uuid())
+  doctorId         String
+  name             String
+  description      String?
+  prescriptionText String
+  isActive         Boolean  @default(true)
+  tags             String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, isActive])
+  @@index([doctorId, createdAt])
 }
