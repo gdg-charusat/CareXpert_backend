@@ -211,9 +211,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       }
 
       // Validate against blocked dates
-      const startTime = timeSlot.startTime.toTimeString().slice(0, 5);
-      const endTime = timeSlot.endTime.toTimeString().slice(0, 5);
-      await validateBlockedDates(timeSlot.doctorId, timeSlot.startTime, startTime, endTime);
+      await validateBlockedDates(timeSlot.doctorId, timeSlot.startTime, timeSlot.endTime);
 
       const existingAppointment = await prisma.appointment.findFirst({
         where: {

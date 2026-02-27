@@ -1542,7 +1542,7 @@ const blockDate = async (req: any, res: Response, next: Function): Promise<any> 
     }
  
     const blockedDateObj = new Date(date);
-    blockedDateObj.setHours(0, 0, 0, 0);
+    blockedDateObj.setUTCHours(0, 0, 0, 0);
 
     // Check for overlapping blocks
     const existingBlocks = await prisma.blockedDate.findMany({
