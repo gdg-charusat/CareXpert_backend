@@ -22,6 +22,9 @@ import {
   getDoctorPrescriptionPdf,
   getPatientReports,
   getPatientReport,
+  blockDate,
+  deleteBlockedDate,
+  getDoctorBlockedDates,
 } from "../controllers/doctor.controller";
 import { isDoctor } from "../utils/helper";
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -157,6 +160,28 @@ router.get(
   globalRateLimiter,
   isDoctor,
   getPatientReport
+);
+
+router.post(
+  "/block-date",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  blockDate
+);
+
+router.delete(
+  "/block-date/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  deleteBlockedDate
+);
+
+router.get(
+  "/:doctorId/blocked-dates",
+  globalRateLimiter,
+  getDoctorBlockedDates
 );
 
 export default router;

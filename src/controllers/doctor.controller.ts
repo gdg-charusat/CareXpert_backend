@@ -1501,6 +1501,218 @@ const getPatientReport = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const blockDate = async (req: any, res: Response, next: Function): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { date, isFullDay, startTime, endTime, reason } = req.body;
+
+  try {
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      throw new ApiError(403, "Only doctors can block dates");
+    }
+
+    if (!date) {
+      throw new ApiError(400, "Date is required");
+    }
+
+    if (!isFullDay) {
+      if (!startTime || !endTime) {
+        throw new ApiError(400, "Start time and end time are required for partial day blocks");
+      }
+
+      // Validate time format (HH:mm)
+      const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
+      if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+        throw new ApiError(400, "Time must be in HH:mm format");
+      }
+
+      // Compare times
+      const [startHour, startMin] = startTime.split(":").map(Number);
+      const [endHour, endMin] = endTime.split(":").map(Number);
+      const startTotalMin = startHour * 60 + startMin;
+      const endTotalMin = endHour * 60 + endMin;
+
+      if (startTotalMin >= endTotalMin) {
+        throw new ApiError(400, "Start time must be before end time");
+      }
+    }
+ 
+    const blockedDateObj = new Date(date);
+    blockedDateObj.setHours(0, 0, 0, 0);
+
+    // Check for overlapping blocks
+    const existingBlocks = await prisma.blockedDate.findMany({
+      where: {
+        doctorId: doctor.id,
+        date: blockedDateObj,
+      },
+    });
+
+    // If full day block requested, check if any blocks exist on this date
+    if (isFullDay) {
+      if (existingBlocks.length > 0) {
+        throw new ApiError(
+          409,
+          "A block already exists for this date. Please delete existing blocks first."
+        );
+      }
+    } else {
+      // Check for overlapping time ranges
+      for (const block of existingBlocks) {
+        if (block.isFullDay) {
+          throw new ApiError(
+            409,
+            "This date has a full-day block. Cannot add partial blocks."
+          );
+        }
+
+        // Check time overlap
+        if (block.startTime && block.endTime) {
+          const [blockStartHour, blockStartMin] = block.startTime.split(":").map(Number);
+          const [blockEndHour, blockEndMin] = block.endTime.split(":").map(Number);
+          const blockStartTotalMin = blockStartHour * 60 + blockStartMin;
+          const blockEndTotalMin = blockEndHour * 60 + blockEndMin;
+
+          const [newStartHour, newStartMin] = startTime.split(":").map(Number);
+          const [newEndHour, newEndMin] = endTime.split(":").map(Number);
+          const newStartTotalMin = newStartHour * 60 + newStartMin;
+          const newEndTotalMin = newEndHour * 60 + newEndMin;
+
+          // Check if ranges overlap
+          if (
+            (newStartTotalMin < blockEndTotalMin && newEndTotalMin > blockStartTotalMin)
+          ) {
+            throw new ApiError(
+              409,
+              "Time range overlaps with an existing block"
+            );
+          }
+        }
+      }
+    }
+
+    const blockedDateRecord = await prisma.blockedDate.create({
+      data: {
+        doctorId: doctor.id,
+        date: blockedDateObj,
+        isFullDay: isFullDay ?? true,
+        startTime: isFullDay ? null : startTime,
+        endTime: isFullDay ? null : endTime,
+        reason: reason || null,
+      },
+    });
+
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(201, blockedDateRecord, "Date blocked successfully")
+      );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const deleteBlockedDate = async (req: any, res: Response, next: Function): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { id } = req.params;
+
+  try {
+    // Get doctor ID
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      throw new ApiError(403, "Only doctors can manage blocked dates");
+    }
+
+    // Find and verify ownership
+    const blockedDate = await prisma.blockedDate.findUnique({
+      where: { id },
+    });
+
+    if (!blockedDate) {
+      throw new ApiError(404, "Blocked date not found");
+    }
+
+    if (blockedDate.doctorId !== doctor.id) {
+      throw new ApiError(403, "You can only delete your own blocked dates");
+    }
+
+    // Delete
+    await prisma.blockedDate.delete({
+      where: { id },
+    });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Blocked date removed successfully"));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getDoctorBlockedDates = async (
+  req: any,
+  res: Response,
+  next: Function
+): Promise<any> => {
+  const { doctorId } = req.params;
+  const { from, to } = req.query;
+
+  try {
+    // Validate doctor exists
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      throw new ApiError(404, "Doctor not found");
+    }
+
+    // Build date range filters
+    const dateFilters: any = { doctorId };
+
+    if (from || to) {
+      dateFilters.date = {};
+
+      if (from) {
+        const fromDate = new Date(from);
+        fromDate.setHours(0, 0, 0, 0);
+        dateFilters.date.gte = fromDate;
+      }
+
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        dateFilters.date.lte = toDate;
+      }
+    }
+
+    // Fetch blocked dates
+    const blockedDates = await prisma.blockedDate.findMany({
+      where: dateFilters,
+      orderBy: {
+        date: "asc",
+      },
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, blockedDates, "Blocked dates retrieved successfully")
+      );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export {
   viewDoctorAppointment,
   updateAppointmentStatus,
@@ -1524,4 +1736,7 @@ export {
   getDoctorPrescriptionPdf,
   getPatientReports,
   getPatientReport,
+  blockDate,
+  deleteBlockedDate,
+  getDoctorBlockedDates,
 };

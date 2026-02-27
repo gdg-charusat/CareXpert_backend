@@ -13,6 +13,7 @@ async function main() {
   await prisma.room.deleteMany({});
   await prisma.patientHistory.deleteMany({});
   await prisma.appointment.deleteMany({});
+  await prisma.blockedDate.deleteMany({});
   await prisma.timeSlot.deleteMany({});
   await prisma.report.deleteMany({});
   await prisma.aiChat.deleteMany({});

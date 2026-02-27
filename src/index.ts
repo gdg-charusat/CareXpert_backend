@@ -54,8 +54,18 @@ app.set("io", io);
 
 setupChatSocket(io).catch((err) => {
   console.error("Failed to initialise chat socket:", err);
+  // Server continues running even if socket setup fails
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+const PORT = process.env.PORT || 3000;
+
+httpServer.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+}).on("error", (err) => {
+  console.error("Server listen error:", err);
+  process.exit(1);
 });

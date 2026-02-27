@@ -14,6 +14,7 @@ import type { Prisma } from "@prisma/client";
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import cacheService from "../utils/cacheService";
+import { validateBlockedDates } from "../utils/blockedDateService";
 
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { specialty, location } = req.query;
@@ -208,6 +209,11 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       if (timeSlot.status !== TimeSlotStatus.AVAILABLE) {
         throw new AppError("This time slot is already booked", 409);
       }
+
+      // Validate against blocked dates
+      const startTime = timeSlot.startTime.toTimeString().slice(0, 5);
+      const endTime = timeSlot.endTime.toTimeString().slice(0, 5);
+      await validateBlockedDates(timeSlot.doctorId, timeSlot.startTime, startTime, endTime);
 
       const existingAppointment = await prisma.appointment.findFirst({
         where: {

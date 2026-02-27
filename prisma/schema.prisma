@@ -101,6 +101,7 @@ model Doctor {
   prescriptions  Prescription[]
   patientHistory PatientHistory[]
   timeSlots      TimeSlot[]
+  blockedDates   BlockedDate[]
 
   user User @relation("DoctorUser", fields: [userId], references: [id])
 }
@@ -194,6 +195,23 @@ model TimeSlot {
   @@unique([doctorId, startTime])
   @@index([doctorId, status, startTime])
   @@index([status, startTime])
+}
+
+model BlockedDate {
+  id        String    @id @default(uuid())
+  doctorId  String
+  date      DateTime  
+  startTime String?   // HH:mm format (e.g., "13:00")
+  endTime   String?   // HH:mm format (e.g., "15:00")
+  reason    String?
+  isFullDay Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, date])
+  @@index([doctorId])
 }
 
 model ChatMessage {
