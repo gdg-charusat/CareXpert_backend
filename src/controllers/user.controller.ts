@@ -10,12 +10,11 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
 import { isValidUUID, validatePassword } from "../utils/helper";
-import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
   try {
-    
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
@@ -46,7 +45,7 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
     role,
     specialty,
     clinicLocation,
-    location, 
+    location,
   } = req.body;
 
   const name = `${firstName || ""} ${lastName || ""}`.trim();
@@ -101,7 +100,7 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = generateVerificationToken();
-    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.create({
@@ -184,21 +183,21 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
       await sendVerificationEmail(result.email, result.name, verificationToken);
     } catch (emailError) {
       console.error("Failed to send verification email:", emailError);
-      
+
     }
 
     return res
       .status(201)
       .json(new ApiResponse(
-        201, 
-        { 
-          user: { 
-            id: result.id, 
-            email: result.email, 
+        201,
+        {
+          user: {
+            id: result.id,
+            email: result.email,
             name: result.name,
-            isEmailVerified: result.isEmailVerified 
-          } 
-        }, 
+            isEmailVerified: result.isEmailVerified
+          }
+        },
         "Signup successful! Please verify your email address."
       ));
   } catch (err) {
@@ -265,15 +264,15 @@ const verifyEmail = async (req: Request, res: any) => {
     return res
       .status(200)
       .json(new ApiResponse(
-        200, 
-        { 
-          user: { 
-            id: updatedUser.id, 
-            email: updatedUser.email, 
+        200,
+        {
+          user: {
+            id: updatedUser.id,
+            email: updatedUser.email,
             name: updatedUser.name,
-            isEmailVerified: updatedUser.isEmailVerified 
-          } 
-        }, 
+            isEmailVerified: updatedUser.isEmailVerified
+          }
+        },
         "Email verified successfully! Your account is now active."
       ));
   } catch (err) {
@@ -333,8 +332,8 @@ const resendVerificationEmail = async (req: Request, res: any, next: NextFunctio
     return res
       .status(200)
       .json(new ApiResponse(
-        200, 
-        {}, 
+        200,
+        {},
         "Verification email sent successfully"
       ));
   } catch (err) {
@@ -365,6 +364,21 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
       .json(new ApiError(400, passwordValidation.message || "Invalid password"));
   }
 
+  // Check if any admin exists for first-admin bootstrap logic
+  const adminCount = await prisma.admin.count();
+  const isFirstAdmin = adminCount === 0;
+
+  // Secret bypass for initial seeding (only if no admins exist)
+  const adminSecret = req.header("X-Admin-Secret");
+  const isSecretValid = isFirstAdmin && adminSecret && adminSecret === process.env.ADMIN_SIGNUP_SECRET;
+
+  // If not using secret (or secret is invalid/not allowed), the request must be authenticated by an existing admin
+  if (!isSecretValid) {
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res.status(403).json(new ApiError(403, isFirstAdmin ? "Valid Admin Secret required for first admin" : "Unauthorized: Admin access required"));
+    }
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -384,7 +398,7 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      
+
       const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
@@ -404,6 +418,8 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // allow report access by default for new admin accounts
+            canViewReports: true,
             canManageSystem: true,
           },
         },
@@ -463,7 +479,7 @@ const login = async (req: any, res: any, next: NextFunction) => {
       return res
         .status(403)
         .json(new ApiError(
-          403, 
+          403,
           "Please verify your email before logging in. Check your inbox for verification link."
         ));
     }
@@ -471,9 +487,9 @@ const login = async (req: any, res: any, next: NextFunction) => {
     const { accessToken, refreshToken } = await generateToken(user.id);
 
     const options = {
-      httpOnly: true, 
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const, 
+      sameSite: "lax" as const,
     };
 
     return res
@@ -514,7 +530,7 @@ const logout = async (req: any, res: any, next: NextFunction) => {
     const options = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const, 
+      sameSite: "lax" as const,
     };
 
     return res
@@ -619,7 +635,7 @@ const refreshAccessToken = async (req: any, res: any) => {
   }
 };
 
-const doctorProfile = async (req: Request, res: Response) => {
+const doctorProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -635,21 +651,20 @@ const doctorProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            
+
             createdAt: true,
           },
         },
       },
     });
 
-    res.status(200).json(new ApiResponse(200, doctor));
+    return res.status(200).json(new ApiResponse(200, doctor));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
-    return;
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
-const userProfile = async (req: Request, res: Response) => {
+const userProfile = async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = (req as any).params;
 
@@ -665,7 +680,7 @@ const userProfile = async (req: Request, res: Response) => {
             name: true,
             email: true,
             profilePicture: true,
-            
+
             createdAt: true,
           },
         },
@@ -680,7 +695,7 @@ const userProfile = async (req: Request, res: Response) => {
   }
 };
 
-const updatePatientProfile = async (req: any, res: Response) => {
+const updatePatientProfile = async (req: any, res: Response): Promise<any> => {
   try {
     const id = (req as any).user?.id;
     const { name } = req.body;
@@ -698,22 +713,27 @@ const updatePatientProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        
+
         createdAt: true,
       },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, user, "Profile updated successfulyy"));
-    return;
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
 const updateDoctorProfile = async (req: any, res: Response) => {
   try {
+    // Verify the user is a doctor
+    if ((req as any).user?.role !== 'DOCTOR') {
+      res.status(403).json(new ApiError(403, "Unauthorized: Only doctors can update doctor profile"));
+      return;
+    }
+
     let id = (req as any).user?.doctor?.id;
     const { specialty, clinicLocation, experience, bio, name, education, languages } = req.body;
     const imageUrl = req.file?.path;
@@ -751,7 +771,7 @@ const updateDoctorProfile = async (req: any, res: Response) => {
         email: true,
         profilePicture: true,
         role: true,
-        
+
         createdAt: true,
         doctor: true,
       },
@@ -792,13 +812,13 @@ const getAuthenticatedUserProfile = async (
     });
 
     if (!user) {
-      
+
       res.status(404).json(new ApiError(404, "User not found"));
       return;
     }
 
     let relatedProfileData = null;
-    
+
     if (user.role === "PATIENT") {
       relatedProfileData = await prisma.patient.findUnique({
         where: { userId: user.id },
@@ -838,7 +858,8 @@ const getAuthenticatedUserProfile = async (
   }
 };
 
-const getNotifications = async (req: any, res: Response) => {
+// Notifications API
+const getNotifications = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { page = 1, limit = 10 } = req.query;
@@ -854,7 +875,7 @@ const getNotifications = async (req: any, res: Response) => {
       where: { userId },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(
         200,
         {
@@ -871,11 +892,11 @@ const getNotifications = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const getUnreadNotificationCount = async (req: any, res: Response) => {
+const getUnreadNotificationCount = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -886,7 +907,7 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
       },
     });
 
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(
@@ -897,11 +918,11 @@ const getUnreadNotificationCount = async (req: any, res: Response) => {
       );
   } catch (error) {
     console.error("Error fetching unread count:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: any, res: Response) => {
+const markNotificationAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { notificationId } = req.params;
@@ -919,16 +940,16 @@ const markNotificationAsRead = async (req: any, res: Response) => {
       return;
     }
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Notification marked as read"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Notification marked as read")
+    );
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const markAllNotificationsAsRead = async (req: any, res: Response) => {
+const markAllNotificationsAsRead = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -940,16 +961,17 @@ const markAllNotificationsAsRead = async (req: any, res: Response) => {
       data: { isRead: true },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "All notifications marked as read"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "All notifications marked as read")
+    );
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const getCommunityMembers = async (req: any, res: Response) => {
+// Community API
+const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
   try {
     const { roomId } = req.params;
 
@@ -979,7 +1001,7 @@ const getCommunityMembers = async (req: any, res: Response) => {
       return;
     }
 
-    const members = room.members.map((member) => ({
+    const members = room.members.map((member: any) => ({
       id: member.id,
       name: member.name,
       email: member.email,
@@ -991,7 +1013,7 @@ const getCommunityMembers = async (req: any, res: Response) => {
       joinedAt: member.createdAt,
     }));
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(
         200,
         {
@@ -1008,11 +1030,11 @@ const getCommunityMembers = async (req: any, res: Response) => {
     );
   } catch (error) {
     console.error("Error fetching community members:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const joinCommunity = async (req: any, res: Response) => {
+const joinCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;
@@ -1051,16 +1073,16 @@ const joinCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Successfully joined the community"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Successfully joined the community")
+    );
   } catch (error) {
     console.error("Error joining community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const leaveCommunity = async (req: any, res: Response) => {
+const leaveCommunity = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { roomId } = req.params;
@@ -1083,12 +1105,12 @@ const leaveCommunity = async (req: any, res: Response) => {
       },
     });
 
-    res
-      .status(200)
-      .json(new ApiResponse(200, {}, "Successfully left the community"));
+    return res.status(200).json(
+      new ApiResponse(200, {}, "Successfully left the community")
+    );
   } catch (error) {
     console.error("Error leaving community:", error);
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 

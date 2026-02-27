@@ -1,5 +1,6 @@
 import express from "express";
 import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
 import {
   getHealthSummary,
   getDoctorVisitFrequency,
@@ -9,7 +10,7 @@ import {
 
 const router = express.Router();
 
-router.use(isAuthenticated);
+router.use(isAuthenticated, globalRateLimiter);
 
 router.get("/summary", getHealthSummary as any);
 router.get("/doctors-visited", getDoctorVisitFrequency as any);

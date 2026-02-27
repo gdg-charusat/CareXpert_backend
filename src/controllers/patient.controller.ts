@@ -10,11 +10,12 @@ import {
   Role,
   AppointmentType,
 } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import cacheService from "../utils/cacheService";
 
-const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
+const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { specialty, location } = req.query;
 
   const specialtyQuery =
@@ -37,7 +38,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
   try {
     const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
     const cached = await cacheService.get(cacheKey);
-    
+
     if (cached) {
       return res.status(200).json(new ApiResponse(200, cached));
     }
@@ -82,18 +83,18 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction) => {
     });
 
     await cacheService.set(cacheKey, doctors, 3600);
-    res.status(200).json(new ApiResponse(200, doctors));
+    return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
     return next(error);
   }
 };
 
-const availableTimeSlots = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+const availableTimeSlots = async (req: any, res: Response, next: NextFunction): Promise<any> => {
   const { doctorId } = (req as any).params;
   const date = req.query.date as string | undefined;
 
   try {
-    
+
     if (!doctorId || !isValidUUID(doctorId)) {
       throw new AppError("Invalid Doctor ID", 400);
     }
@@ -153,7 +154,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       },
     });
 
-    const formattedSlots = availableSlots.map((slot) => ({
+    const formattedSlots = availableSlots.map((slot: any) => ({
       id: slot.id,
       startTime: slot.startTime,
       endTime: slot.endTime,
@@ -163,7 +164,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       location: slot.doctor.clinicLocation,
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedSlots));
+    return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
     return next(error);
   }
@@ -171,7 +172,7 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
 
 const bookAppointment = async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { timeSlotId } = req.body;
-  
+
   const userId = (req as any).user?.id;
   const patient = await prisma.patient.findUnique({
     where: { userId },
@@ -179,7 +180,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
   });
 
   try {
-    
+
     if (!patient) {
       throw new AppError("Only patients can book appointments!", 403);
     }
@@ -189,7 +190,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
     }
 
     const result = await prisma.$transaction(async (prisma) => {
-      
+
       const timeSlot = await prisma.timeSlot.findUnique({
         where: { id: timeSlotId },
         include: {
@@ -230,7 +231,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
           },
         },
       });
-      
+
       if (existingAppointment) {
         throw new AppError("You already have an appointment in this time slot", 409);
       }
@@ -321,7 +322,7 @@ const fetchAllDoctors = async (req: any, res: Response) => {
     });
 
     const doctors = await Promise.all(
-      doctorss.map(async (doctor) => {
+      doctorss.map(async (doctor: any) => {
         const nextSlot = await prisma.timeSlot.findFirst({
           where: {
             doctorId: doctor.id,
@@ -349,17 +350,16 @@ const fetchAllDoctors = async (req: any, res: Response) => {
       })
     );
 
-    res.status(200).json(new ApiResponse(200, doctors));
+    return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
-    return;
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
 const getUpcomingAppointments = async (
   req: any,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const patientId = (req as any).user?.patient?.id;
 
   try {
@@ -401,7 +401,7 @@ const getUpcomingAppointments = async (
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -414,15 +414,15 @@ const getUpcomingAppointments = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
 };
 
-const getPastAppointments = async (req: any, res: Response): Promise<void> => {
+const getPastAppointments = async (req: any, res: Response): Promise<any> => {
   const patientId = (req as any).user?.patient?.id;
 
   try {
@@ -464,7 +464,7 @@ const getPastAppointments = async (req: any, res: Response): Promise<void> => {
       },
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       doctorName: appointment.doctor.user.name,
@@ -477,9 +477,9 @@ const getPastAppointments = async (req: any, res: Response): Promise<void> => {
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
@@ -527,11 +527,11 @@ const cancelAppointment = async (req: Request, res: Response) => {
       });
       await cacheService.delPattern(`timeslots:*`);
     }
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, "Appointment Cancelled successfully!"));
   } catch (error) {
-    res
+    return res
       .status(400)
       .json(
         new ApiError(400, "Error occured while cancelling appointment!", [
@@ -569,7 +569,7 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       },
     });
 
-    const formatted = Prescriptions.map((p) => ({
+    const formatted = Prescriptions.map((p: any) => ({
       id: p.id,
       date: p.dateIssued,
       prescriptionText: p.prescriptionText,
@@ -578,9 +578,9 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       clinicLocation: p.doctor.clinicLocation,
     }));
 
-    res.status(200).json(new ApiResponse(200, formatted));
+    return res.status(200).json(new ApiResponse(200, formatted));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
@@ -783,7 +783,7 @@ const prescriptionPdf = async (req: Request, res: Response) => {
     });
     doc.end();
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
@@ -829,7 +829,7 @@ const cityRooms = async (req: Request, res: Response) => {
 const bookDirectAppointment = async (
   req: any,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const { doctorId, date, time, appointmentType, notes } = req.body;
   const patientId = req.user?.patient?.id;
 
@@ -996,7 +996,7 @@ const bookDirectAppointment = async (
       createdAt: appointment.createdAt,
     };
 
-    res.status(201).json(
+    return res.status(201).json(
       new ApiResponse(201, {
         data: formattedAppointment,
         message: "Appointment request sent successfully",
@@ -1004,14 +1004,14 @@ const bookDirectAppointment = async (
     );
   } catch (error) {
     console.error("Error booking appointment:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
 const getAllPatientAppointments = async (
   req: any,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const patientId = req.user?.patient?.id;
 
   try {
@@ -1045,7 +1045,7 @@ const getAllPatientAppointments = async (
       orderBy: [{ date: "asc" }, { time: "asc" }],
     });
 
-    const formattedAppointments = appointments.map((appointment) => ({
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
       status: appointment.status,
       appointmentType: appointment.appointmentType,
@@ -1068,16 +1068,16 @@ const getAllPatientAppointments = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
     console.error("Error fetching appointments:", error);
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
 };
 
-const getPatientNotifications = async (req: Request, res: Response): Promise<void> => {
+const getPatientNotifications = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
   const { isRead } = req.query;
 
@@ -1109,14 +1109,14 @@ const getPatientNotifications = async (req: Request, res: Response): Promise<voi
       },
     });
 
-    res.status(200).json(new ApiResponse(200, notifications));
+    return res.status(200).json(new ApiResponse(200, notifications));
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
+const markNotificationAsRead = async (req: Request, res: Response): Promise<any> => {
   const notificationId = req.params.notificationId as string;
   const userId = (req as any).user?.id;
 
@@ -1136,14 +1136,14 @@ const markNotificationAsRead = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
+    return res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
   }
 };
 
-const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<void> => {
+const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
 
   try {
@@ -1157,10 +1157,10 @@ const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<
       },
     });
 
-    res.status(200).json(new ApiResponse(200, { message: "All notifications marked as read" }));
+    return res.status(200).json(new ApiResponse(200, { message: "All notifications marked as read" }));
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark all notifications as read!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark all notifications as read!", [error]));
   }
 };
 

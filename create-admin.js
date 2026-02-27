@@ -28,6 +28,8 @@ async function createAdmin() {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // new flag to control access to patient reports
+            canViewReports: true,
             canManageSystem: true,
           },
         },

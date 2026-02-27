@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { UserInRequest } from "../utils/helper";
 import {
   AppointmentStatus,
   TimeSlotStatus,
@@ -10,13 +9,14 @@ import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
 import doc from "pdfkit";
 import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../utils/emailService";
+import { emitNotificationToUser } from "../chat/index";
 
 const viewDoctorAppointment = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const userId = (req as any).user?.id;
-  const { status, upcoming } = req.query; 
+  const { status, upcoming } = req.query;
 
   const doctor = await prisma.doctor.findUnique({
     where: { userId },
@@ -82,9 +82,9 @@ const viewDoctorAppointment = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
@@ -175,7 +175,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
         ),
       }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
     }
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(
@@ -185,13 +185,13 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
         )
       );
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to update appointment", [error]));
   }
 };
 
-const addTimeslot = async (req: Request, res: Response) => {
+const addTimeslot = async (req: Request, res: Response): Promise<any> => {
   const { startTime, endTime } = req.body;
   if (!startTime || !endTime) {
     res.status(400).json(new ApiError(400, "Start and end time required"));
@@ -259,15 +259,15 @@ const addTimeslot = async (req: Request, res: Response) => {
       });
     });
 
-    res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
+    return res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
-const generateBulkTimeSlots = async (req: Request, res: Response) => {
+const generateBulkTimeSlots = async (req: Request, res: Response): Promise<any> => {
   const { startDate, endDate, startTime, endTime, durationInMinutes } = req.body;
-  
+
   if (!startDate || !endDate || !startTime || !endTime || !durationInMinutes) {
     res.status(400).json(new ApiError(400, "All fields are required: startDate, endDate, startTime, endTime, durationInMinutes"));
     return;
@@ -292,7 +292,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json(new ApiError(400, "Invalid date format"));
       return;
@@ -317,7 +317,6 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
     while (currentDate <= end) {
       const dateStr = currentDate.toISOString().split('T')[0];
-      
       let currentMinutes = startHour * 60 + startMinute;
       const endMinutes = endHour * 60 + endMinute;
 
@@ -330,7 +329,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
 
         const slotStart = new Date(dateStr);
         slotStart.setHours(slotStartHour, slotStartMinute, 0, 0);
-        
+
         const slotEnd = new Date(dateStr);
         slotEnd.setHours(slotEndHour, slotEndMinute, 0, 0);
 
@@ -351,7 +350,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
             reason: "Overlaps with existing slot"
           });
         } else {
-          
+
           const timeSlot = await prisma.timeSlot.create({
             data: {
               doctorId: doctor.id,
@@ -368,7 +367,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    res.status(200).json(new ApiResponse(200, {
+    return res.status(200).json(new ApiResponse(200, {
       message: "Bulk timeslots generation completed",
       created: createdSlots.length,
       skipped: skippedSlots.length,
@@ -376,7 +375,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response) => {
       skippedSlots
     }));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal server error", [error]));
   }
 };
 
@@ -386,7 +385,7 @@ const cancelAppointment = async (req: Request, res: any) => {
 
   try {
     if (!doctorId) {
-      res
+      return res
         .status(400)
         .json(new ApiError(400, "Only doctor can cancel Appointments!"));
     }
@@ -396,11 +395,11 @@ const cancelAppointment = async (req: Request, res: any) => {
     });
 
     if (!appointment || doctorId !== appointment.doctorId) {
-      res
+      return res
         .status(400)
         .json(new ApiError(400, "Appointment not found or Unauthorized"));
     } else if (appointment.status === AppointmentStatus.CANCELLED) {
-      res.status(400).json(new ApiError(400, "Appointment already Cancelled!"));
+      return res.status(400).json(new ApiError(400, "Appointment already Cancelled!"));
     }
 
     const updatedAppointment = await prisma.appointment.update({
@@ -422,7 +421,7 @@ const cancelAppointment = async (req: Request, res: any) => {
       .status(200)
       .json(new ApiResponse(200, null, "Appointment Cancelled successfully!"));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(
         new ApiError(500, "Error occured while cancelling appointment!", [
@@ -432,8 +431,8 @@ const cancelAppointment = async (req: Request, res: any) => {
   }
 };
 
-const viewTimeslots = async (req: Request, res: Response) => {
-  const { status, startTime, endTime } = req.query; 
+const viewTimeslots = async (req: Request, res: Response): Promise<any> => {
+  const { status, startTime, endTime } = req.query; //status = AVAILABLE,BOOKED,CANCELLED
   const userId = (req as any).user?.id;
 
   try {
@@ -471,9 +470,9 @@ const viewTimeslots = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json(new ApiResponse(200, timeSlots));
+    return res.status(200).json(new ApiResponse(200, timeSlots));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "internal server error", [error]));
+    return res.status(500).json(new ApiError(500, "internal server error", [error]));
   }
 };
 
@@ -511,9 +510,9 @@ const getPatientHistory = async (req: Request, res: Response) => {
       orderBy: { dateRecorded: "desc" },
     });
 
-    res.status(200).json(new ApiResponse(200, history));
+    return res.status(200).json(new ApiResponse(200, history));
   } catch (error) {
-    res.status(500).json(new ApiError(400, "Failed to fetch patient history!"));
+    return res.status(500).json(new ApiError(500, "Failed to fetch patient history!"));
   }
 };
 
@@ -537,11 +536,11 @@ const updateTimeSlot = async (req: Request, res: Response) => {
       },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, "Time slot updated successfully!"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to update timeslots"));
+    return res.status(500).json(new ApiError(500, "Failed to update timeslots"));
   }
 };
 
@@ -559,7 +558,7 @@ const deleteTimeSlot = async (req: Request, res: Response) => {
   try {
     const timeSlot = await prisma.timeSlot.findUnique({
       where: { id: timeSlotID },
-      include: { appointment: true }, 
+      include: { appointment: true },
     });
 
     if (!timeSlot || timeSlot.doctorId !== doctorId) {
@@ -580,11 +579,11 @@ const deleteTimeSlot = async (req: Request, res: Response) => {
       where: { id: timeSlotID },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, "Time slot successfully deleted!"));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to delete time slot", [error]));
   }
@@ -662,9 +661,9 @@ const createRoom = async (req: Request, res: Response) => {
 const getAllDoctorAppointments = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const userId = req.user?.id;
-  const { status, upcoming } = req.query; 
+  const { status, upcoming } = req.query;
 
   try {
     const doctor = await prisma.doctor.findUnique({
@@ -757,16 +756,16 @@ const getAllDoctorAppointments = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
     console.error("Error fetching doctor appointments:", error);
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
 };
 
-const getPendingAppointmentRequests = async (req: Request, res: Response): Promise<void> => {
+const getPendingAppointmentRequests = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
 
   try {
@@ -845,16 +844,16 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
       } : null,
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedRequests));
+    return res.status(200).json(new ApiResponse(200, formattedRequests));
   } catch (error) {
     console.error("Error fetching pending requests:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch pending requests!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to fetch pending requests!", [error]));
   }
 };
 
-const respondToAppointmentRequest = async (req: Request, res: Response): Promise<void> => {
+const respondToAppointmentRequest = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
-  const { action, rejectionReason, alternativeSlots } = req.body; 
+  const { action, rejectionReason, alternativeSlots } = req.body;
   const userId = (req as any).user?.id;
 
   try {
@@ -905,7 +904,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
     let notification;
 
     if (action === "accept") {
-      
+
       updatedAppointment = await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -931,7 +930,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       }
 
     } else {
-      
+
       updatedAppointment = await prisma.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -978,7 +977,12 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       ),
     }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
-    res.status(200).json(new ApiResponse(200, {
+    const io = req.app.get("io");
+    if (io && notification?.userId) {
+      emitNotificationToUser(io, notification.userId, notification);
+    }
+
+    return res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,
       notification,
       message: `Appointment request ${action}ed successfully`,
@@ -986,11 +990,11 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
 
   } catch (error) {
     console.error("Error responding to appointment request:", error);
-    res.status(500).json(new ApiError(500, "Failed to process appointment request!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to process appointment request!", [error]));
   }
 };
 
-const getDoctorNotifications = async (req: Request, res: Response): Promise<void> => {
+const getDoctorNotifications = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
   const { isRead } = req.query;
 
@@ -1022,14 +1026,14 @@ const getDoctorNotifications = async (req: Request, res: Response): Promise<void
       },
     });
 
-    res.status(200).json(new ApiResponse(200, notifications));
+    return res.status(200).json(new ApiResponse(200, notifications));
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
+const markNotificationAsRead = async (req: Request, res: Response): Promise<any> => {
   const notificationId = req.params.notificationId as string;
   const userId = (req as any).user?.id;
 
@@ -1049,14 +1053,14 @@ const markNotificationAsRead = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
+    return res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
   }
 };
 
-const addPrescriptionToAppointment = async (req: Request, res: Response): Promise<void> => {
+const addPrescriptionToAppointment = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
   const { prescriptionText, notes } = req.body as { prescriptionText?: string; notes?: string };
   const doctorUserId = (req as any).user?.id;
@@ -1087,12 +1091,12 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
       },
     });
 
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        prescriptionId: prescription.id,
-        notes: notes || undefined,
-      },
+	    const updatedAppointment = await prisma.appointment.update({
+	      where: { id: appointment.id },
+	      data: {
+	        prescriptionId: prescription.id,
+	        notes: notes || undefined,
+	      },
       select: {
         id: true,
         patient: {
@@ -1102,9 +1106,7 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
         }
       }
     });
-    console.log(updatedAppointment)
-    
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: updatedAppointment.patient.userId,
         type: "PRESCRIPTION_ADDED",
@@ -1114,13 +1116,18 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
       },
     });
 
-    res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
+    const io = req.app.get("io");
+    if (io && notification?.userId) {
+      emitNotificationToUser(io, notification.userId, notification);
+    }
+
+    return res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to add prescription", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to add prescription", [error]));
   }
 };
 
-const markAppointmentCompleted = async (req: Request, res: Response): Promise<void> => {
+const markAppointmentCompleted = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
   const doctorUserId = (req as any).user?.id;
 
@@ -1142,9 +1149,355 @@ const markAppointmentCompleted = async (req: Request, res: Response): Promise<vo
       data: { status: AppointmentStatus.COMPLETED },
     });
 
-    res.status(200).json(new ApiResponse(200, updated, "Appointment marked as completed"));
+    return res.status(200).json(new ApiResponse(200, updated, "Appointment marked as completed"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to mark appointment as completed", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark appointment as completed", [error]));
+  }
+};
+
+const viewDoctorPrescriptions = async (req: Request, res: Response): Promise<void> => {
+  const doctorUserId = (req as any).user?.id;
+
+  try {
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { userId: doctorUserId },
+      select: { id: true }
+    });
+
+    if (!doctor) {
+      res.status(403).json(new ApiError(403, "Only doctors can view prescriptions"));
+      return;
+    }
+
+    const prescriptions = await prisma.prescription.findMany({
+      where: { doctorId: doctor.id },
+      include: {
+        patient: {
+          select: {
+            user: {
+              select: { 
+                name: true,
+                email: true
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        dateIssued: "desc",
+      },
+    });
+
+    const formatted = prescriptions.map((p) => ({
+      id: p.id,
+      date: p.dateIssued,
+      prescriptionText: p.prescriptionText,
+      patientName: p.patient.user.name,
+      patientEmail: p.patient.user.email,
+    }));
+
+    res.status(200).json(new ApiResponse(200, formatted, "Prescriptions fetched successfully"));
+  } catch (error) {
+    res.status(500).json(new ApiError(500, "Failed to fetch prescriptions", [error]));
+  }
+};
+
+const getDoctorPrescriptionPdf = async (req: Request, res: Response): Promise<void> => {
+  const doctorUserId = (req as any).user?.id;
+  const prescriptionId = req.params.id as string;
+
+  try {
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { userId: doctorUserId },
+      select: { id: true }
+    });
+
+    if (!doctor) {
+      res.status(403).json(new ApiError(403, "Only doctors can access prescriptions"));
+      return;
+    }
+
+    const prescription = await prisma.prescription.findUnique({
+      where: { id: prescriptionId },
+      include: {
+        patient: {
+          select: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        doctor: {
+          select: {
+            specialty: true,
+            clinicLocation: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!prescription || prescription.doctorId !== doctor.id) {
+      res.status(404).json(new ApiError(404, "Prescription not found or unauthorized"));
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename=prescription_${prescriptionId}.pdf`
+    );
+
+    const pdfDoc = new doc({
+      size: "A5",
+      margins: { top: 40, bottom: 60, left: 40, right: 40 },
+    });
+
+    pdfDoc.pipe(res);
+
+    pdfDoc
+      .font("Helvetica-Bold")
+      .fontSize(22)
+      .fillColor("#333333")
+      .text("PRESCRIPTION", { align: "center", underline: false });
+
+    pdfDoc.moveDown(0.5);
+
+    const drawHorizontalLine = (y: number, color: string = "#cccccc"): void => {
+      pdfDoc
+        .save()
+        .strokeColor(color)
+        .lineWidth(0.5)
+        .moveTo(40, y)
+        .lineTo(pdfDoc.page.width - 40, y)
+        .stroke()
+        .restore();
+    };
+
+    drawHorizontalLine(pdfDoc.y);
+    pdfDoc.moveDown(1);
+
+    pdfDoc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#555555")
+      .text("Patient Information", { underline: false });
+
+    pdfDoc.moveDown(0.3);
+
+    pdfDoc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#333333")
+      .text(`Name: ${prescription.patient.user.name}`, { continued: false });
+
+    pdfDoc
+      .text(`Email: ${prescription.patient.user.email}`, { continued: false });
+
+    pdfDoc.moveDown(1);
+
+    pdfDoc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#555555")
+      .text("Doctor Information", { underline: false });
+
+    pdfDoc.moveDown(0.3);
+
+    pdfDoc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#333333")
+      .text(`Name: Dr. ${prescription.doctor.user.name}`, { continued: false });
+
+    pdfDoc
+      .text(`Specialty: ${prescription.doctor.specialty}`, { continued: false });
+
+    pdfDoc
+      .text(`Clinic: ${prescription.doctor.clinicLocation}`, { continued: false });
+
+    pdfDoc.moveDown(1);
+    drawHorizontalLine(pdfDoc.y);
+    pdfDoc.moveDown(1);
+
+    pdfDoc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor("#555555")
+      .text("Prescription Details", { underline: false });
+
+    pdfDoc.moveDown(0.5);
+
+    pdfDoc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#333333")
+      .text(`Date Issued: ${new Date(prescription.dateIssued).toLocaleDateString()}`, {
+        continued: false,
+      });
+
+    pdfDoc.moveDown(0.8);
+
+    pdfDoc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#000000")
+      .text("Prescription:", { underline: false });
+
+    pdfDoc.moveDown(0.3);
+
+    pdfDoc
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor("#333333")
+      .text(prescription.prescriptionText, {
+        align: "left",
+        lineGap: 2,
+      });
+
+    pdfDoc.moveDown(2);
+
+    const bottomY = pdfDoc.page.height - 80;
+    pdfDoc.y = bottomY;
+
+    drawHorizontalLine(pdfDoc.y, "#000000");
+    pdfDoc.moveDown(0.5);
+
+    pdfDoc
+      .font("Helvetica-Oblique")
+      .fontSize(8)
+      .fillColor("#777777")
+      .text("This is a computer-generated prescription.", {
+        align: "center",
+      });
+
+    pdfDoc.end();
+  } catch (error) {
+    res.status(500).json(new ApiError(500, "Failed to generate prescription PDF", [error]));
+  }
+};
+
+const getPatientReports = async (req: Request, res: Response): Promise<void> => {
+  const doctorUserId = (req as any).user?.id;
+  const patientId = req.params.patientId as string;
+
+  try {
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { userId: doctorUserId },
+      select: { id: true }
+    });
+
+    if (!doctor) {
+      res.status(403).json(new ApiError(403, "Only doctors can view patient reports"));
+      return;
+    }
+
+    // Verify that doctor has had appointments with this patient
+    const hasAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId: doctor.id,
+        patientId: patientId,
+      },
+    });
+
+    if (!hasAppointment) {
+      res.status(403).json(new ApiError(403, "You can only view reports of your patients"));
+      return;
+    }
+
+    const reports = await prisma.report.findMany({
+      where: { 
+        patientId: patientId,
+        status: "COMPLETED" // Only show successfully processed reports
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        filename: true,
+        fileUrl: true,
+        mimeType: true,
+        fileSize: true,
+        summary: true,
+        abnormalValues: true,
+        possibleConditions: true,
+        recommendation: true,
+        disclaimer: true,
+        createdAt: true,
+        status: true,
+      },
+    });
+
+    res.status(200).json(new ApiResponse(200, reports, "Patient reports fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching patient reports:", error);
+    res.status(500).json(new ApiError(500, "Failed to fetch patient reports", [error]));
+  }
+};
+
+const getPatientReport = async (req: Request, res: Response): Promise<void> => {
+  const doctorUserId = (req as any).user?.id;
+  const reportId = req.params.reportId as string;
+
+  try {
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { userId: doctorUserId },
+      select: { id: true }
+    });
+
+    if (!doctor) {
+      res.status(403).json(new ApiError(403, "Only doctors can view patient reports"));
+      return;
+    }
+
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!report) {
+      res.status(404).json(new ApiError(404, "Report not found"));
+      return;
+    }
+
+    // Verify that doctor has had appointments with this patient
+    const hasAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId: doctor.id,
+        patientId: report.patientId,
+      },
+    });
+
+    if (!hasAppointment) {
+      res.status(403).json(new ApiError(403, "You can only view reports of your patients"));
+      return;
+    }
+
+    res.status(200).json(new ApiResponse(200, report, "Report fetched successfully"));
+  } catch (error) {
+    console.error("Error fetching patient report:", error);
+    res.status(500).json(new ApiError(500, "Failed to fetch patient report", [error]));
   }
 };
 
@@ -1167,4 +1520,8 @@ export {
   markNotificationAsRead,
   addPrescriptionToAppointment,
   markAppointmentCompleted,
+  viewDoctorPrescriptions,
+  getDoctorPrescriptionPdf,
+  getPatientReports,
+  getPatientReport,
 };

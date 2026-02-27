@@ -18,6 +18,10 @@ import {
   addPrescriptionToAppointment,
   markAppointmentCompleted,
   generateBulkTimeSlots,
+  viewDoctorPrescriptions,
+  getDoctorPrescriptionPdf,
+  getPatientReports,
+  getPatientReport,
 } from "../controllers/doctor.controller";
 import { isDoctor } from "../utils/helper";
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -35,35 +39,35 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  updateAppointmentStatus
+  updateAppointmentStatus as any
 );
 router.patch(
   "/cancel-appointment/:appointmentId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  cancelAppointment
+  cancelAppointment as any
 );
 router.get(
   "/patient-history/:patientId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getPatientHistory
+  getPatientHistory as any
 );
 router.patch(
   "/update-timeSlot/:timeSlotID",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  updateTimeSlot
+  updateTimeSlot as any
 );
 router.delete(
   "/delete-timeSlot/:timeSlotId",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  deleteTimeSlot
+  deleteTimeSlot as any
 );
 
 router.get("/city-rooms", isAuthenticated, globalRateLimiter, isDoctor, cityRooms);
@@ -82,7 +86,7 @@ router.get(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getPendingAppointmentRequests
+  getPendingAppointmentRequests as any
 );
 
 router.patch(
@@ -90,7 +94,7 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  respondToAppointmentRequest
+  respondToAppointmentRequest as any
 );
 
 router.post(
@@ -98,14 +102,14 @@ router.post(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  addPrescriptionToAppointment
+  addPrescriptionToAppointment as any
 );
 router.patch(
   "/appointments/:appointmentId/complete",
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  markAppointmentCompleted
+  markAppointmentCompleted as any
 );
 
 router.get(
@@ -113,7 +117,7 @@ router.get(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getDoctorNotifications
+  getDoctorNotifications as any
 );
 
 router.patch(
@@ -121,7 +125,38 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  markNotificationAsRead
+  markNotificationAsRead as any
+);
+router.get(
+  "/prescriptions",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  viewDoctorPrescriptions
+);
+
+router.get(
+  "/prescription-pdf/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getDoctorPrescriptionPdf
+);
+
+router.get(
+  "/patient/:patientId/reports",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPatientReports
+);
+
+router.get(
+  "/patient/report/:reportId",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPatientReport
 );
 
 export default router;

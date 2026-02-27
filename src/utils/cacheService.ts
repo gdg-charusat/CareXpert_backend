@@ -4,7 +4,8 @@ class CacheService {
   async get<T>(key: string): Promise<T | null> {
     try {
       const data = await redisClient.get(key);
-      return data ? JSON.parse(data) : null;
+      return data ? JSON.parse(data.toString()) : null;
+
     } catch (error) {
       console.error('Cache get error:', error);
       return null;
