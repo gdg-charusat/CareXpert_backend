@@ -49,6 +49,8 @@ model User {
   isEmailVerified        Boolean  @default(false)
   emailVerificationToken String?
   tokenExpiresAt         DateTime?
+  passwordResetToken     String?
+  passwordResetExpiry    DateTime?
 
   // 🧹 Soft delete
   deletedAt              DateTime?

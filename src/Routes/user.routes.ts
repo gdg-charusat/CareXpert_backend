@@ -19,6 +19,8 @@ import {
   leaveCommunity,
   verifyEmail,
   resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/user.controller";
 
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -59,6 +61,9 @@ router.post("/refresh-token", refreshAccessToken);
 
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification-email", resendVerificationEmail);
+
+router.post("/forgot-password", signupRateLimiter, forgotPassword);
+router.post("/reset-password", signupRateLimiter, resetPassword);
 
 router.get(
   "/patient/profile/:id",
