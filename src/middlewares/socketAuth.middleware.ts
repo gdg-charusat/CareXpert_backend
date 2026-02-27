@@ -30,9 +30,11 @@ const defaultFindUser: FindUserFn = (userId) =>
  * Accepts an optional `findUser` function so the data-access layer can be
  * replaced in tests without duplicating any middleware logic.
  *
- * Reads the JWT from either:
- *   - socket.handshake.auth.token  (preferred – sent by the frontend on connect)
- *   - Authorization header          ("Bearer <token>")
+ * Reads the JWT from (in priority order):
+ *   1. socket.handshake.auth.token  (preferred – sent explicitly by the client)
+ *   2. Authorization header          ("Bearer <token>")
+ *   3. accessToken httpOnly cookie   (sent automatically by browsers when
+ *                                     withCredentials: true is set on the socket)
  *
  * On success it attaches `userId`, `name` and `role` to `socket.data` so that
  * every event handler in the namespace can access the verified caller without
@@ -49,7 +51,21 @@ export function createSocketAuthMiddleware(findUser: FindUserFn = defaultFindUse
         "Bearer ",
         ""
       );
-      const token = authToken || headerToken;
+
+      // Also support httpOnly cookie sent by the browser (withCredentials: true).
+      // Inline parse: extract accessToken=<value> from the raw cookie header.
+      const rawCookie = socket.handshake.headers?.cookie ?? "";
+      const cookieToken = rawCookie
+        ? (rawCookie
+            .split(";")
+            .map((c) => c.trim())
+            .find((c) => c.startsWith("accessToken="))
+            ?.split("=")
+            .slice(1)
+            .join("=") ?? null)
+        : null;
+
+      const token = authToken || headerToken || cookieToken;
 
       if (!token) {
         return next(new Error("Authentication error: No token provided"));

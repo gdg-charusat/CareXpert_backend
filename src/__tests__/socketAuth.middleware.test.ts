@@ -33,13 +33,19 @@ function signToken(payload: object): string {
 function makeSocket(options: {
   authToken?: string;
   headerToken?: string;
+  cookieToken?: string;
 }): any {
   return {
     handshake: {
       auth: options.authToken !== undefined ? { token: options.authToken } : {},
-      headers: options.headerToken
-        ? { authorization: `Bearer ${options.headerToken}` }
-        : {},
+      headers: {
+        ...(options.headerToken
+          ? { authorization: `Bearer ${options.headerToken}` }
+          : {}),
+        ...(options.cookieToken
+          ? { cookie: `accessToken=${options.cookieToken}` }
+          : {}),
+      },
     },
     data: {} as Record<string, unknown>,
   };
@@ -181,6 +187,20 @@ describe("socketAuth.middleware – createSocketAuthMiddleware()", () => {
 
     expect(err).toBeUndefined();
     expect(socket.data.userId).toBe("user-A");
+  });
+
+  // ── 7b. httpOnly cookie (withCredentials: true from frontend) ────────────────
+  it("accepts a valid accessToken sent as an httpOnly cookie", async () => {
+    findUser.mockResolvedValue(VALID_USER);
+    const token = signToken({ userId: VALID_USER.id, tokenVersion: 1 });
+    const socket = makeSocket({ cookieToken: token });
+
+    const err = await invokeMiddleware(middleware, socket);
+
+    expect(err).toBeUndefined();
+    expect(socket.data.userId).toBe(VALID_USER.id);
+    expect(socket.data.name).toBe(VALID_USER.name);
+    expect(socket.data.role).toBe(VALID_USER.role);
   });
 
   // ── 8. Server error in findUser ───────────────────────────────────────────────
