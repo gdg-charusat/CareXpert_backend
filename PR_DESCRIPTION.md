@@ -47,6 +47,7 @@ res.status(200).json(result); // Safe - only runs if no error
 - Added `return` statements to ~50+ error response locations
 - Updated function return types from `Promise<void>` to `Promise<any>` where needed
 - Fixed both try block error responses and catch block error responses
+- Fixed `tx` -> `prisma` reference in `bookAppointment` transaction callback
 
 ### Testing
 - All modified endpoints should now properly terminate on errors
