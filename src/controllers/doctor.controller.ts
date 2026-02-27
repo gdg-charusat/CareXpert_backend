@@ -1504,6 +1504,7 @@ const getPatientReport = async (req: Request, res: Response): Promise<void> => {
 const blockDate = async (req: any, res: Response, next: Function): Promise<any> => {
   const userId = (req as any).user?.id;
   const { date, isFullDay, startTime, endTime, reason } = req.body;
+  const isFullDayValue = isFullDay ?? true;
 
   try {
     const doctor = await prisma.doctor.findUnique({
@@ -1519,7 +1520,7 @@ const blockDate = async (req: any, res: Response, next: Function): Promise<any> 
       throw new ApiError(400, "Date is required");
     }
 
-    if (!isFullDay) {
+    if (!isFullDayValue) {
       if (!startTime || !endTime) {
         throw new ApiError(400, "Start time and end time are required for partial day blocks");
       }
@@ -1553,7 +1554,7 @@ const blockDate = async (req: any, res: Response, next: Function): Promise<any> 
     });
 
     // If full day block requested, check if any blocks exist on this date
-    if (isFullDay) {
+    if (isFullDayValue) {
       if (existingBlocks.length > 0) {
         throw new ApiError(
           409,
@@ -1599,9 +1600,9 @@ const blockDate = async (req: any, res: Response, next: Function): Promise<any> 
       data: {
         doctorId: doctor.id,
         date: blockedDateObj,
-        isFullDay: isFullDay ?? true,
-        startTime: isFullDay ? null : startTime,
-        endTime: isFullDay ? null : endTime,
+        isFullDay: isFullDayValue,
+        startTime: isFullDayValue ? null : startTime,
+        endTime: isFullDayValue ? null : endTime,
         reason: reason || null,
       },
     });
@@ -1684,13 +1685,13 @@ const getDoctorBlockedDates = async (
 
       if (from) {
         const fromDate = new Date(from);
-        fromDate.setHours(0, 0, 0, 0);
+        fromDate.setUTCHours(0, 0, 0, 0);
         dateFilters.date.gte = fromDate;
       }
 
       if (to) {
         const toDate = new Date(to);
-        toDate.setHours(23, 59, 59, 999);
+        toDate.setUTCHours(23, 59, 59, 999);
         dateFilters.date.lte = toDate;
       }
     }
