@@ -197,7 +197,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new AppError("This time slot is already booked", 409);
       }
 
-      const existingAppointment = await tx.appointment.findFirst({
+      const existingAppointment = await prisma.appointment.findFirst({
         where: {
           status: {
             in: [
@@ -218,7 +218,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new AppError("You already have an appointment in this time slot", 409);
       }
 
-      const updateResult = await tx.timeSlot.updateMany({
+      const updateResult = await prisma.timeSlot.updateMany({
         where: { id: timeSlotId, status: TimeSlotStatus.AVAILABLE },
         data: { status: TimeSlotStatus.BOOKED },
       });
@@ -227,7 +227,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         throw new ApiError(400, "Time slot is already booked");
       }
 
-      const appointment = await tx.appointment.create({
+      const appointment = await prisma.appointment.create({
         data: {
           patientId: patient.id,
           doctorId: timeSlot.doctorId,
@@ -261,7 +261,7 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
         },
       });
 
-      const updatedTimeSlot = await tx.timeSlot.findUnique({ where: { id: timeSlotId } });
+      const updatedTimeSlot = await prisma.timeSlot.findUnique({ where: { id: timeSlotId } });
 
       return { appointment, updatedTimeSlot };
     });
