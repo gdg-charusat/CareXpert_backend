@@ -25,6 +25,13 @@ import {
   blockDate,
   deleteBlockedDate,
   getDoctorBlockedDates,
+  createPrescriptionTemplate,
+  getPrescriptionTemplates,
+  getPrescriptionTemplate,
+  updatePrescriptionTemplate,
+  deletePrescriptionTemplate,
+  usePrescriptionTemplate,
+  getPrescriptionTemplateTags,
 } from "../controllers/doctor.controller";
 import { isDoctor } from "../utils/helper";
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -182,6 +189,73 @@ router.get(
   "/:doctorId/blocked-dates",
   globalRateLimiter,
   getDoctorBlockedDates
+);
+
+// ============================================
+// PRESCRIPTION TEMPLATES ROUTES
+// ============================================
+
+// Get all tags
+router.get(
+  "/prescription-templates/tags",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPrescriptionTemplateTags
+);
+
+// Create new template
+router.post(
+  "/prescription-templates",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  createPrescriptionTemplate
+);
+
+// Get all templates
+router.get(
+  "/prescription-templates",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPrescriptionTemplates
+);
+
+// Use a template (must be before :id route to avoid conflict)
+router.post(
+  "/prescription-templates/:id/use",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  usePrescriptionTemplate
+);
+
+// Get specific template
+router.get(
+  "/prescription-templates/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  getPrescriptionTemplate
+);
+
+// Update template
+router.put(
+  "/prescription-templates/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  updatePrescriptionTemplate
+);
+
+// Delete template
+router.delete(
+  "/prescription-templates/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  isDoctor,
+  deletePrescriptionTemplate
 );
 
 export default router;

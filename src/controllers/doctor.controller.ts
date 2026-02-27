@@ -1714,6 +1714,535 @@ const getDoctorBlockedDates = async (
   }
 };
 
+// ============================================
+// PRESCRIPTION TEMPLATES
+// ============================================
+
+/**
+ * Create a new prescription template
+ * POST /api/doctor/prescription-templates
+ */
+const createPrescriptionTemplate = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { name, description, prescriptionText, tags } = req.body;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Validate input
+    if (!name || !prescriptionText) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Name and prescription text are required"));
+    }
+
+    if (name.length > 200) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Name must be less than 200 characters"));
+    }
+
+    // Create template
+    const template = await prisma.prescriptionTemplate.create({
+      data: {
+        doctorId: doctor.id,
+        name,
+        description: description || null,
+        prescriptionText,
+        tags: tags || [],
+        isActive: true,
+      },
+    });
+
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(201, template, "Prescription template created successfully")
+      );
+  } catch (error) {
+    console.error("Error creating prescription template:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to create prescription template", [error]));
+  }
+};
+
+/**
+ * Get all prescription templates for the logged-in doctor
+ * GET /api/doctor/prescription-templates
+ */
+const getPrescriptionTemplates = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { search, tag, isActive } = req.query;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Build filters
+    const filters: any = {
+      doctorId: doctor.id,
+    };
+
+    // Filter by active status
+    if (isActive !== undefined) {
+      filters.isActive = isActive === "true";
+    }
+
+    // Filter by tag
+    if (tag && typeof tag === "string") {
+      filters.tags = {
+        has: tag,
+      };
+    }
+
+    // Get templates
+    let templates = await prisma.prescriptionTemplate.findMany({
+      where: filters,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Search by name or description
+    if (search && typeof search === "string") {
+      const searchLower = search.toLowerCase();
+      templates = templates.filter(
+        (template) =>
+          template.name.toLowerCase().includes(searchLower) ||
+          (template.description?.toLowerCase().includes(searchLower) ?? false)
+      );
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          templates,
+          "Prescription templates retrieved successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error fetching prescription templates:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to fetch prescription templates", [error]));
+  }
+};
+
+/**
+ * Get a specific prescription template
+ * GET /api/doctor/prescription-templates/:id
+ */
+const getPrescriptionTemplate = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { id } = req.params;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Get template
+    const template = await prisma.prescriptionTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!template) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "Prescription template not found"));
+    }
+
+    // Verify ownership
+    if (template.doctorId !== doctor.id) {
+      return res
+        .status(403)
+        .json(
+          new ApiError(403, "You are not authorized to access this template")
+        );
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          template,
+          "Prescription template retrieved successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error fetching prescription template:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to fetch prescription template", [error]));
+  }
+};
+
+/**
+ * Update a prescription template
+ * PUT /api/doctor/prescription-templates/:id
+ */
+const updatePrescriptionTemplate = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { id } = req.params;
+  const { name, description, prescriptionText, tags, isActive } = req.body;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Get template
+    const existingTemplate = await prisma.prescriptionTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!existingTemplate) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "Prescription template not found"));
+    }
+
+    // Verify ownership
+    if (existingTemplate.doctorId !== doctor.id) {
+      return res
+        .status(403)
+        .json(
+          new ApiError(403, "You are not authorized to update this template")
+        );
+    }
+
+    // Validate input
+    if (name && name.length > 200) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Name must be less than 200 characters"));
+    }
+
+    // Update template
+    const updatedTemplate = await prisma.prescriptionTemplate.update({
+      where: { id },
+      data: {
+        name: name || existingTemplate.name,
+        description: description !== undefined ? description : existingTemplate.description,
+        prescriptionText: prescriptionText || existingTemplate.prescriptionText,
+        tags: tags !== undefined ? tags : existingTemplate.tags,
+        isActive: isActive !== undefined ? isActive : existingTemplate.isActive,
+      },
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          updatedTemplate,
+          "Prescription template updated successfully"
+        )
+      );
+  } catch (error) {
+    console.error("Error updating prescription template:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to update prescription template", [error]));
+  }
+};
+
+/**
+ * Delete/deactivate a prescription template
+ * DELETE /api/doctor/prescription-templates/:id
+ */
+const deletePrescriptionTemplate = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { id } = req.params;
+  const { permanent } = req.query;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Get template
+    const template = await prisma.prescriptionTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!template) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "Prescription template not found"));
+    }
+
+    // Verify ownership
+    if (template.doctorId !== doctor.id) {
+      return res
+        .status(403)
+        .json(
+          new ApiError(403, "You are not authorized to delete this template")
+        );
+    }
+
+    // Delete or deactivate
+    if (permanent === "true") {
+      await prisma.prescriptionTemplate.delete({
+        where: { id },
+      });
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(200, null, "Prescription template deleted permanently")
+        );
+    } else {
+      const deactivatedTemplate = await prisma.prescriptionTemplate.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            deactivatedTemplate,
+            "Prescription template deactivated successfully"
+          )
+        );
+    }
+  } catch (error) {
+    console.error("Error deleting prescription template:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to delete prescription template", [error]));
+  }
+};
+
+/**
+ * Use a template for a patient (with customization)
+ * POST /api/doctor/prescription-templates/:id/use
+ */
+const usePrescriptionTemplate = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+  const { id } = req.params;
+  const { patientId, customizedText, appointmentId } = req.body;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Get template
+    const template = await prisma.prescriptionTemplate.findUnique({
+      where: { id },
+    });
+
+    if (!template) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "Prescription template not found"));
+    }
+
+    // Verify ownership
+    if (template.doctorId !== doctor.id) {
+      return res
+        .status(403)
+        .json(
+          new ApiError(403, "You are not authorized to use this template")
+        );
+    }
+
+    // Validate patient exists
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      include: { user: true },
+    });
+
+    if (!patient) {
+      return res.status(404).json(new ApiError(404, "Patient not found"));
+    }
+
+    // Use customized text if provided, otherwise use template text
+    const prescriptionText = customizedText || template.prescriptionText;
+
+    // Create prescription
+    const prescription = await prisma.prescription.create({
+      data: {
+        doctorId: doctor.id,
+        patientId,
+        prescriptionText,
+      },
+    });
+
+    // If appointmentId is provided, link the prescription to the appointment
+    if (appointmentId) {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+      });
+
+      if (appointment && appointment.doctorId === doctor.id) {
+        await prisma.appointment.update({
+          where: { id: appointmentId },
+          data: { prescriptionId: prescription.id },
+        });
+
+        // Create patient history if appointment exists
+        const existingHistory = await prisma.patientHistory.findFirst({
+          where: { appointmentId },
+        });
+
+        if (!existingHistory) {
+          await prisma.patientHistory.create({
+            data: {
+              patientId,
+              doctorId: doctor.id,
+              prescriptionId: prescription.id,
+              appointmentId,
+              notes: `Prescription created using template: ${template.name}`,
+              dateRecorded: new Date(),
+            },
+          });
+        }
+      }
+    }
+
+    // Send email notification
+    const doctorUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    if (doctorUser) {
+      sendEmail({
+        to: patient.user.email,
+        subject: "New Prescription Available - CareXpert",
+        html: prescriptionTemplate(
+          doctorUser.name,
+          new Date().toLocaleDateString()
+        ),
+      }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
+    }
+
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(
+          201,
+          prescription,
+          "Prescription created successfully from template"
+        )
+      );
+  } catch (error) {
+    console.error("Error using prescription template:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to use prescription template", [error]));
+  }
+};
+
+/**
+ * Get all unique tags used by the doctor
+ * GET /api/doctor/prescription-templates/tags
+ */
+const getPrescriptionTemplateTags = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const userId = (req as any).user?.id;
+
+  try {
+    // Get doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return res.status(404).json(new ApiError(404, "Doctor not found"));
+    }
+
+    // Get all templates for this doctor
+    const templates = await prisma.prescriptionTemplate.findMany({
+      where: { doctorId: doctor.id },
+      select: { tags: true },
+    });
+
+    // Extract unique tags
+    const tagsSet = new Set<string>();
+    templates.forEach((template) => {
+      template.tags.forEach((tag) => tagsSet.add(tag));
+    });
+
+    const uniqueTags = Array.from(tagsSet).sort();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, uniqueTags, "Tags retrieved successfully")
+      );
+  } catch (error) {
+    console.error("Error fetching prescription template tags:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Failed to fetch tags", [error]));
+  }
+};
+
 export {
   viewDoctorAppointment,
   updateAppointmentStatus,
@@ -1740,4 +2269,11 @@ export {
   blockDate,
   deleteBlockedDate,
   getDoctorBlockedDates,
+  createPrescriptionTemplate,
+  getPrescriptionTemplates,
+  getPrescriptionTemplate,
+  updatePrescriptionTemplate,
+  deletePrescriptionTemplate,
+  usePrescriptionTemplate,
+  getPrescriptionTemplateTags,
 };
