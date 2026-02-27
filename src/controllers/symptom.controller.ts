@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 import { isValidUUID } from "../utils/helper";
 
-export const logSymptom = async (req: any, res: Response): Promise<void> => {
+export const logSymptom = async (req: any, res: Response): Promise<any> => {
   try {
     const user = req.user;
 
@@ -31,18 +31,18 @@ export const logSymptom = async (req: any, res: Response): Promise<void> => {
       },
     });
 
-    res
+    return res
       .status(201)
       .json(
         new ApiResponse(201, symptom, "Symptom logged successfully")
       );
   } catch (error) {
     console.error("Error in logSymptom:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
-export const getSymptomHistory = async (req: any, res: Response): Promise<void> => {
+export const getSymptomHistory = async (req: any, res: Response): Promise<any> => {
   try {
     const user = req.user;
 
@@ -56,22 +56,22 @@ export const getSymptomHistory = async (req: any, res: Response): Promise<void> 
         patientId: user.patient.id,
       },
       orderBy: {
-        symptomText: "asc", 
+        symptomText: "asc",
       },
     });
 
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(200, symptoms, "Symptoms retrieved successfully")
       );
   } catch (error) {
     console.error("Error in getSymptomHistory:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };
 
-export const deleteSymptom = async (req: any, res: Response): Promise<void> => {
+export const deleteSymptom = async (req: any, res: Response): Promise<any> => {
   try {
     const user = req.user;
     const { symptomId } = req.params;
@@ -108,13 +108,13 @@ export const deleteSymptom = async (req: any, res: Response): Promise<void> => {
       where: { id: symptomId },
     });
 
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(200, null, "Symptom deleted successfully")
       );
   } catch (error) {
     console.error("Error in deleteSymptom:", error);
-    res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
+    return res.status(500).json(new ApiError(500, "Internal Server Error", [error]));
   }
 };

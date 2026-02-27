@@ -175,7 +175,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
         ),
       }).catch((err: unknown) => console.error("Failed to send prescription email:", err));
     }
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(
@@ -185,7 +185,7 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
         )
       );
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to update appointment", [error]));
   }
@@ -367,7 +367,7 @@ const generateBulkTimeSlots = async (req: Request, res: Response): Promise<any> 
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    res.status(200).json(new ApiResponse(200, {
+    return res.status(200).json(new ApiResponse(200, {
       message: "Bulk timeslots generation completed",
       created: createdSlots.length,
       skipped: skippedSlots.length,
@@ -385,7 +385,7 @@ const cancelAppointment = async (req: Request, res: any) => {
 
   try {
     if (!doctorId) {
-      res
+      return res
         .status(400)
         .json(new ApiError(400, "Only doctor can cancel Appointments!"));
     }
@@ -395,11 +395,11 @@ const cancelAppointment = async (req: Request, res: any) => {
     });
 
     if (!appointment || doctorId !== appointment.doctorId) {
-      res
+      return res
         .status(400)
         .json(new ApiError(400, "Appointment not found or Unauthorized"));
     } else if (appointment.status === AppointmentStatus.CANCELLED) {
-      res.status(400).json(new ApiError(400, "Appointment already Cancelled!"));
+      return res.status(400).json(new ApiError(400, "Appointment already Cancelled!"));
     }
 
     const updatedAppointment = await prisma.appointment.update({
@@ -421,7 +421,7 @@ const cancelAppointment = async (req: Request, res: any) => {
       .status(200)
       .json(new ApiResponse(200, null, "Appointment Cancelled successfully!"));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(
         new ApiError(500, "Error occured while cancelling appointment!", [
@@ -510,9 +510,9 @@ const getPatientHistory = async (req: Request, res: Response) => {
       orderBy: { dateRecorded: "desc" },
     });
 
-    res.status(200).json(new ApiResponse(200, history));
+    return res.status(200).json(new ApiResponse(200, history));
   } catch (error) {
-    res.status(500).json(new ApiError(400, "Failed to fetch patient history!"));
+    return res.status(500).json(new ApiError(500, "Failed to fetch patient history!"));
   }
 };
 
@@ -536,11 +536,11 @@ const updateTimeSlot = async (req: Request, res: Response) => {
       },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, "Time slot updated successfully!"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to update timeslots"));
+    return res.status(500).json(new ApiError(500, "Failed to update timeslots"));
   }
 };
 
@@ -579,11 +579,11 @@ const deleteTimeSlot = async (req: Request, res: Response) => {
       where: { id: timeSlotID },
     });
 
-    res
+    return res
       .status(200)
       .json(new ApiResponse(200, "Time slot successfully deleted!"));
   } catch (error) {
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to delete time slot", [error]));
   }
@@ -661,7 +661,7 @@ const createRoom = async (req: Request, res: Response) => {
 const getAllDoctorAppointments = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   const userId = req.user?.id;
   const { status, upcoming } = req.query;
 
@@ -756,16 +756,16 @@ const getAllDoctorAppointments = async (
       },
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedAppointments));
+    return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {
     console.error("Error fetching doctor appointments:", error);
-    res
+    return res
       .status(500)
       .json(new ApiError(500, "Failed to fetch appointments!", [error]));
   }
 };
 
-const getPendingAppointmentRequests = async (req: Request, res: Response): Promise<void> => {
+const getPendingAppointmentRequests = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
 
   try {
@@ -844,14 +844,14 @@ const getPendingAppointmentRequests = async (req: Request, res: Response): Promi
       } : null,
     }));
 
-    res.status(200).json(new ApiResponse(200, formattedRequests));
+    return res.status(200).json(new ApiResponse(200, formattedRequests));
   } catch (error) {
     console.error("Error fetching pending requests:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch pending requests!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to fetch pending requests!", [error]));
   }
 };
 
-const respondToAppointmentRequest = async (req: Request, res: Response): Promise<void> => {
+const respondToAppointmentRequest = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
   const { action, rejectionReason, alternativeSlots } = req.body;
   const userId = (req as any).user?.id;
@@ -977,7 +977,7 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       ),
     }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
-    res.status(200).json(new ApiResponse(200, {
+    return res.status(200).json(new ApiResponse(200, {
       appointment: updatedAppointment,
       notification,
       message: `Appointment request ${action}ed successfully`,
@@ -985,11 +985,11 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
 
   } catch (error) {
     console.error("Error responding to appointment request:", error);
-    res.status(500).json(new ApiError(500, "Failed to process appointment request!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to process appointment request!", [error]));
   }
 };
 
-const getDoctorNotifications = async (req: Request, res: Response): Promise<void> => {
+const getDoctorNotifications = async (req: Request, res: Response): Promise<any> => {
   const userId = (req as any).user?.id;
   const { isRead } = req.query;
 
@@ -1021,14 +1021,14 @@ const getDoctorNotifications = async (req: Request, res: Response): Promise<void
       },
     });
 
-    res.status(200).json(new ApiResponse(200, notifications));
+    return res.status(200).json(new ApiResponse(200, notifications));
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to fetch notifications!", [error]));
   }
 };
 
-const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
+const markNotificationAsRead = async (req: Request, res: Response): Promise<any> => {
   const notificationId = req.params.notificationId as string;
   const userId = (req as any).user?.id;
 
@@ -1048,14 +1048,14 @@ const markNotificationAsRead = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
+    return res.status(200).json(new ApiResponse(200, { message: "Notification marked as read" }));
   } catch (error) {
     console.error("Error marking notification as read:", error);
-    res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark notification as read!", [error]));
   }
 };
 
-const addPrescriptionToAppointment = async (req: Request, res: Response): Promise<void> => {
+const addPrescriptionToAppointment = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
   const { prescriptionText, notes } = req.body as { prescriptionText?: string; notes?: string };
   const doctorUserId = (req as any).user?.id;
@@ -1113,13 +1113,13 @@ const addPrescriptionToAppointment = async (req: Request, res: Response): Promis
       },
     });
 
-    res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
+    return res.status(200).json(new ApiResponse(200, { appointment: updatedAppointment, prescriptionId: prescription.id }, "Prescription saved"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to add prescription", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to add prescription", [error]));
   }
 };
 
-const markAppointmentCompleted = async (req: Request, res: Response): Promise<void> => {
+const markAppointmentCompleted = async (req: Request, res: Response): Promise<any> => {
   const appointmentId = req.params.appointmentId as string;
   const doctorUserId = (req as any).user?.id;
 
@@ -1141,9 +1141,9 @@ const markAppointmentCompleted = async (req: Request, res: Response): Promise<vo
       data: { status: AppointmentStatus.COMPLETED },
     });
 
-    res.status(200).json(new ApiResponse(200, updated, "Appointment marked as completed"));
+    return res.status(200).json(new ApiResponse(200, updated, "Appointment marked as completed"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to mark appointment as completed", [error]));
+    return res.status(500).json(new ApiError(500, "Failed to mark appointment as completed", [error]));
   }
 };
 

@@ -841,7 +841,7 @@ const getNotifications = async (req: any, res: Response): Promise<any> => {
       where: { userId },
     });
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(
         200,
         {
@@ -873,7 +873,7 @@ const getUnreadNotificationCount = async (req: any, res: Response): Promise<any>
       },
     });
 
-    res
+    return res
       .status(200)
       .json(
         new ApiResponse(
@@ -979,7 +979,7 @@ const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
       joinedAt: member.createdAt,
     }));
 
-    res.status(200).json(
+    return res.status(200).json(
       new ApiResponse(
         200,
         {
