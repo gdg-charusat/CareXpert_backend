@@ -1,9 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prismClient";
 import { uploadToCloudinary } from "../utils/cloudinary";
-
-const prisma = new PrismaClient();
 interface DmMessageData {
   roomId: string;
   senderId: string;
@@ -37,8 +35,11 @@ export function handleDmSocket(io: Server, socket: Socket) {
     "dmMessage",
     async (message: { event: string; data: DmMessageData }) => {
       try {
-        const { roomId, senderId, receiverId, username, text, image } =
-          message.data;
+        // Use verified identity from authenticated socket instead of client-supplied senderId/username
+        const authenticatedUser = socket.data.user;
+        const senderId = authenticatedUser.id;
+        const username = authenticatedUser.name;
+        const { roomId, receiverId, text, image } = message.data;
         let messageData: any = {
           roomId,
           senderId,

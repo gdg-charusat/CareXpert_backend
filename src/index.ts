@@ -5,6 +5,8 @@ import routes from "./Routes/index";
 import cookieParser from "cookie-parser";
 import { Server, Socket } from "socket.io";
 import http from "http";
+import jwt from "jsonwebtoken";
+import prisma from "./utils/prismClient";
 import { handleRoomSocket } from "./chat/roomManager";
 import { handleDmSocket } from "./chat/dmManager";
 
@@ -64,10 +66,54 @@ const io = new Server(httpServer, {
 });
 
 export function setupChatSocket(io: Server) {
-  io.on("connection", (socket: Socket) => {
-    console.log(`User connected: ${socket.id}`);
+  // Socket.IO authentication middleware — verify JWT before allowing connection
+  io.use(async (socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace("Bearer ", "");
 
-    // Temporary test message
+      if (!token) {
+        return next(new Error("Authentication required"));
+      }
+
+      const decoded = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET as string
+      );
+
+      if (typeof decoded !== "object" || decoded === null || !decoded.userId) {
+        return next(new Error("Invalid token"));
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      if (!user) {
+        return next(new Error("User not found"));
+      }
+
+      // Attach verified user identity to the socket
+      socket.data.user = user;
+      next();
+    } catch (err) {
+      console.error("Socket authentication error:", err);
+      return next(new Error("Authentication failed"));
+    }
+  });
+
+  io.on("connection", (socket: Socket) => {
+    const user = socket.data.user;
+    console.log(`User connected: ${socket.id} (userId: ${user.id}, name: ${user.name})`);
+
+    // Confirm successful authenticated connection
     socket.emit("test_message", { data: "Connection successful!" });
 
     try {
@@ -78,7 +124,7 @@ export function setupChatSocket(io: Server) {
     }
 
     socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
+      console.log(`User disconnected: ${socket.id} (userId: ${user.id})`);
     });
   });
 }

@@ -1,8 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 interface JoinRoomData {
   userId: string;
@@ -23,7 +21,11 @@ export function handleRoomSocket(io: Server, socket: Socket) {
     "joinRoom",
     async (message: { event: string; data: JoinRoomData }) => {
       try {
-        const { userId, username, roomId } = message.data;
+        // Use verified identity from authenticated socket
+        const authenticatedUser = socket.data.user;
+        const userId = authenticatedUser.id;
+        const username = authenticatedUser.name;
+        const { roomId } = message.data;
 
         socket.join(roomId);
 
@@ -55,22 +57,11 @@ export function handleRoomSocket(io: Server, socket: Socket) {
     "roomMessage",
     async (message: { event: string; data: RoomMessageData }) => {
       try {
-        let { senderId, username, roomId, text, image } = message.data;
-
-        // Fallback: if senderId is missing (seen in some patient emits), try to resolve by username
-        if (!senderId && username) {
-          const user = await prisma.user.findFirst({
-            where: { name: { equals: username, mode: "insensitive" } },
-            select: { id: true },
-          });
-          if (user) senderId = user.id;
-        }
-
-        // If still missing, do not attempt to persist; notify client
-        if (!senderId) {
-          socket.emit("error", "Missing senderId for room message");
-          return;
-        }
+        // Use verified identity from authenticated socket instead of client-supplied senderId/username
+        const authenticatedUser = socket.data.user;
+        const senderId = authenticatedUser.id;
+        const username = authenticatedUser.name;
+        const { roomId, text, image } = message.data;
 
         const messageData = {
           roomId,
