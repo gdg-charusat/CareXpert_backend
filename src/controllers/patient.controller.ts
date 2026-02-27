@@ -13,7 +13,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import PDFDocument from "pdfkit";
 import fs from "fs";
-import cacheService from "../utils/cacheService";
+import cacheService, { CACHE_TTL, CACHE_KEYS } from "../utils/cacheService";
 import { validateBlockedDates } from "../utils/blockedDateService";
 
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
@@ -37,7 +37,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
     return;
   }
   try {
-    const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
+    const cacheKey = CACHE_KEYS.DOCTORS_SEARCH(specialtyQuery, locationQuery);
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
@@ -83,7 +83,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
       },
     });
 
-    await cacheService.set(cacheKey, doctors, 3600);
+    await cacheService.set(cacheKey, doctors, CACHE_TTL.SEARCH_DOCTORS);
     return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
     return next(error);
@@ -95,6 +95,12 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
   const date = req.query.date as string | undefined;
 
   try {
+    // ── Cache lookup ──────────────────────────────────────────────────────
+    const cacheKey = CACHE_KEYS.TIME_SLOTS(doctorId, date);
+    const cachedSlots = await cacheService.get<any[]>(cacheKey);
+    if (cachedSlots) {
+      return res.status(200).json(new ApiResponse(200, cachedSlots));
+    }
 
     if (!doctorId || !isValidUUID(doctorId)) {
       throw new AppError("Invalid Doctor ID", 400);
@@ -164,6 +170,9 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       specialty: slot.doctor.specialty,
       location: slot.doctor.clinicLocation,
     }));
+
+    // ── Cache result ───────────────────────────────────────────────────────
+    await cacheService.set(cacheKey, formattedSlots, CACHE_TTL.TIME_SLOTS);
 
     return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
@@ -301,6 +310,15 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       },
     };
 
+    // ── Cache invalidation ─────────────────────────────────────────────────
+    const bookedDoctorId = result?.appointment.doctorId;
+    if (bookedDoctorId) {
+      await Promise.all([
+        cacheService.delPattern(`timeslots:${bookedDoctorId}:*`),
+        cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+      ]);
+    }
+
     res.status(200).json(
       new ApiResponse(200, {
         data: formattedAppointment,
@@ -314,6 +332,12 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
 
 const fetchAllDoctors = async (req: any, res: Response) => {
   try {
+    // ── Cache lookup ──────────────────────────────────────────────────────
+    const cachedDoctors = await cacheService.get<any[]>(CACHE_KEYS.ALL_DOCTORS);
+    if (cachedDoctors) {
+      return res.status(200).json(new ApiResponse(200, cachedDoctors));
+    }
+
     const doctorss = await prisma.doctor.findMany({
       include: {
         user: {
@@ -353,6 +377,9 @@ const fetchAllDoctors = async (req: any, res: Response) => {
         };
       })
     );
+
+    // ── Cache result ───────────────────────────────────────────────────────
+    await cacheService.set(CACHE_KEYS.ALL_DOCTORS, doctors, CACHE_TTL.ALL_DOCTORS);
 
     return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
