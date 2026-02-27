@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
@@ -339,6 +340,8 @@ const changeUserRole = async (req: Request, res: Response): Promise<any> => {
                             canManageDoctors: true,
                             canManagePatients: true,
                             canViewAnalytics: true,
+                            // grant report viewing by default for new admins
+                            canViewReports: true,
                             canManageSystem: true,
                         },
                     },

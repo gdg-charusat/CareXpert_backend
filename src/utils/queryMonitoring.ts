@@ -1,15 +1,12 @@
+import { Prisma } from "@prisma/client";
+
 const SLOW_QUERY_THRESHOLD = 100;
 
-// Prisma v5+ $extends query extension (replaces deprecated $use / Prisma.Middleware)
-export const queryMonitoringExtension = {
+export const queryMonitoringExtension = Prisma.defineExtension({
+  name: "queryMonitoring",
   query: {
     $allModels: {
-      async $allOperations({ model, operation, args, query }: {
-        model: string;
-        operation: string;
-        args: unknown;
-        query: (args: unknown) => Promise<unknown>;
-      }) {
+      async $allOperations({ model, operation, args, query }) {
         const before = Date.now();
         const result = await query(args);
         const after = Date.now();
@@ -25,4 +22,5 @@ export const queryMonitoringExtension = {
       },
     },
   },
-};
+});
+

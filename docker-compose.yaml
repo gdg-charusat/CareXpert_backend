@@ -25,6 +25,14 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - prisma-network
+
 networks:
   prisma-network:
 

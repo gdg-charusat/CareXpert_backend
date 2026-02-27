@@ -10,7 +10,6 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { hash } from "crypto";
 import { isValidUUID, validatePassword } from "../utils/helper";
-import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
 import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
@@ -364,6 +363,21 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
       .json(new ApiError(400, passwordValidation.message || "Invalid password"));
   }
 
+  // Check if any admin exists for first-admin bootstrap logic
+  const adminCount = await prisma.admin.count();
+  const isFirstAdmin = adminCount === 0;
+
+  // Secret bypass for initial seeding (only if no admins exist)
+  const adminSecret = req.header("X-Admin-Secret");
+  const isSecretValid = isFirstAdmin && adminSecret && adminSecret === process.env.ADMIN_SIGNUP_SECRET;
+
+  // If not using secret (or secret is invalid/not allowed), the request must be authenticated by an existing admin
+  if (!isSecretValid) {
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res.status(403).json(new ApiError(403, isFirstAdmin ? "Valid Admin Secret required for first admin" : "Unauthorized: Admin access required"));
+    }
+  }
+
   try {
     let existingUser = await prisma.user.findFirst({
       where: { name },
@@ -403,6 +417,8 @@ const adminSignup = async (req: Request, res: any, next: NextFunction) => {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // allow report access by default for new admin accounts
+            canViewReports: true,
             canManageSystem: true,
           },
         },
@@ -700,6 +716,12 @@ const updatePatientProfile = async (req: any, res: Response): Promise<any> => {
 
 const updateDoctorProfile = async (req: any, res: Response) => {
   try {
+    // Verify the user is a doctor
+    if ((req as any).user?.role !== 'DOCTOR') {
+      res.status(403).json(new ApiError(403, "Unauthorized: Only doctors can update doctor profile"));
+      return;
+    }
+
     let id = (req as any).user?.doctor?.id;
     const { specialty, clinicLocation, experience, bio, name, education, languages } = req.body;
     const imageUrl = req.file?.path;
@@ -967,7 +989,7 @@ const getCommunityMembers = async (req: any, res: Response): Promise<any> => {
       return;
     }
 
-    const members = room.members.map((member) => ({
+    const members = room.members.map((member: any) => ({
       id: member.id,
       name: member.name,
       email: member.email,
