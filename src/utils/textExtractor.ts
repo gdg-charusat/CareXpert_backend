@@ -4,14 +4,11 @@ import * as https from "https";
 import * as http from "http";
 import { fromBuffer } from "pdf2pic";
 
-// Note: Using any[] type for pdf2pic results to avoid complex type definitions
-
-// Type declarations
 declare global {
   namespace Express {
     namespace Multer {
       interface File {
-        // Extend here only if you have additional properties
+        
       }
     }
   }
@@ -23,11 +20,6 @@ export interface TextExtractionResult {
   fileSize: number;
 }
 
-/**
- * Downloads a file from a URL and returns it as a Buffer
- * @param url URL to download the file from
- * @returns Promise that resolves to the file buffer
- */
 async function downloadFileFromUrl(url: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith("https:") ? https : http;
@@ -50,11 +42,6 @@ async function downloadFileFromUrl(url: string): Promise<Buffer> {
   });
 }
 
-/**
- * Extracts text from a file (PDF or image) - supports both local files and Cloudinary URLs
- * @param filePath Path to the file to extract text from (local path or Cloudinary URL)
- * @returns Promise that resolves to the extracted text and file info
- */
 export async function extractTextFromFile(
   filePath: string
 ): Promise<TextExtractionResult> {
@@ -62,15 +49,14 @@ export async function extractTextFromFile(
     let fileBuffer: Buffer;
     let fileExt: string;
 
-    // Check if it's a Cloudinary URL
     if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
       console.log("Downloading file from Cloudinary URL:", filePath);
       fileBuffer = await downloadFileFromUrl(filePath);
-      // Extract file extension from URL
+      
       const urlPath = new URL(filePath).pathname;
       fileExt = path.extname(urlPath).toLowerCase();
     } else {
-      // Local file
+      
       fileBuffer = await fs.promises.readFile(filePath);
       fileExt = path.extname(filePath).toLowerCase();
     }
@@ -81,7 +67,7 @@ export async function extractTextFromFile(
     if (fileExt === ".pdf") {
       try {
         const text = await extractTextFromPdf(fileBuffer);
-        // If PDF text extraction returns empty or very short text, try OCR
+        
         if (!text || text.trim().length < 10) {
           console.log(
             "PDF text extraction returned minimal text, trying OCR..."
@@ -95,7 +81,7 @@ export async function extractTextFromFile(
           "PDF text extraction failed, trying OCR fallback...",
           pdfError
         );
-        // If PDF parsing fails, try OCR as fallback
+        
         const ocrText = await extractTextFromPdfAsImage(fileBuffer);
         return { text: ocrText, mimeType, fileSize };
       }
@@ -113,10 +99,6 @@ export async function extractTextFromFile(
   }
 }
 
-/**
- * Extracts text from a PDF file using pdf-parse
- * @param pdfBuffer Buffer containing PDF data
- */
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
     const pdf = await import("pdf-parse");
@@ -130,15 +112,11 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-/**
- * Extracts text from a PDF by converting it to images and using OCR
- * @param pdfBuffer Buffer containing PDF data
- */
 async function extractTextFromPdfAsImage(pdfBuffer: Buffer): Promise<string> {
   try {
-    // Convert PDF to images
+    
     const convert = fromBuffer(pdfBuffer, {
-      density: 100, // DPI for better quality
+      density: 100, 
       saveFilename: "page",
       savePath: "./temp",
       format: "png",
@@ -146,28 +124,23 @@ async function extractTextFromPdfAsImage(pdfBuffer: Buffer): Promise<string> {
       height: 2000,
     });
 
-    const results: any[] = await convert.bulk(-1); // Convert all pages
+    const results: any[] = await convert.bulk(-1); 
     let allText = "";
 
-    // Process each page
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       console.log(`Processing PDF page ${i + 1}/${results.length}`);
 
-      // Check if result has a valid path
       if (!result || !result.path || typeof result.path !== "string") {
         console.warn(`Skipping page ${i + 1}: No valid path found`);
         continue;
       }
 
-      // Read the converted image
       const imageBuffer = await fs.promises.readFile(result.path);
 
-      // Extract text from the image using OCR
       const pageText = await extractTextFromImage(imageBuffer);
       allText += pageText + "\n";
 
-      // Clean up the temporary image file
       try {
         await fs.promises.unlink(result.path);
       } catch (cleanupError) {
@@ -189,19 +162,14 @@ async function extractTextFromPdfAsImage(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-/**
- * Extracts text from an image using Tesseract.js
- * @param imageBuffer Buffer containing image data
- */
 import { createWorker } from "tesseract.js";
 
 async function extractTextFromImage(imageBuffer: Buffer): Promise<string> {
   let worker: any = null;
   try {
-    // Create Tesseract worker for v6+ with language parameter
+    
     worker = await createWorker("eng");
 
-    // Recognize text from the image buffer
     const {
       data: { text },
     } = await worker.recognize(imageBuffer);
@@ -213,7 +181,7 @@ async function extractTextFromImage(imageBuffer: Buffer): Promise<string> {
     console.error("Error extracting text from image:", errorMessage);
     throw new Error(`Failed to extract text from image: ${errorMessage}`);
   } finally {
-    // Safely terminate the worker if it exists
+    
     if (worker && typeof worker.terminate === "function") {
       try {
         await worker.terminate();
@@ -224,10 +192,6 @@ async function extractTextFromImage(imageBuffer: Buffer): Promise<string> {
   }
 }
 
-/**
- * Returns MIME type based on file extension
- * @param ext File extension including the dot (e.g., '.pdf')
- */
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
     ".pdf": "application/pdf",
@@ -243,11 +207,6 @@ function getMimeType(ext: string): string {
   return mimeTypes[ext];
 }
 
-/**
- * Validates the file size and type
- * @param file Express Multer File object
- * @param maxSizeInBytes Maximum allowed file size in bytes (default: 10MB)
- */
 export function validateFile(
   file: Express.Multer.File,
   maxSizeInBytes: number = 10 * 1024 * 1024

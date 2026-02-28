@@ -1,29 +1,35 @@
-import { Server, Socket } from "socket.io";
+import { Namespace, Socket } from "socket.io";
 import { formatMessage } from "./utils";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 interface JoinRoomData {
-  userId: string;
-  username: string;
+  // userId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   roomId: string;
 }
 
 interface RoomMessageData {
-  senderId: string;
-  username: string;
+  // senderId and username are intentionally omitted — the server derives
+  // these from the verified socket.data set by socketAuth.middleware.ts.
   roomId: string;
   text: string;
   image?: string;
 }
 
-export function handleRoomSocket(io: Server, socket: Socket) {
+/**
+ * Registers room-based chat event handlers on the /chat/room namespace.
+ * @param _nsp  - The /chat/room Namespace instance (currently unused; retained for API consistency)
+ * @param socket - The individual authenticated socket connection
+ */
+export function handleRoomSocket(_nsp: Namespace, socket: Socket) {
   socket.on(
     "joinRoom",
     async (message: { event: string; data: JoinRoomData }) => {
       try {
-        const { userId, username, roomId } = message.data;
+        const { roomId } = message.data;
+        // Use server-verified identity — never trust client-supplied userId/username
+        const userId = socket.data.userId as string;
+        const username = socket.data.name as string;
 
         socket.join(roomId);
 
@@ -33,7 +39,6 @@ export function handleRoomSocket(io: Server, socket: Socket) {
           text: `Welcome to ${roomId} room!`,
         });
 
-        // Attach roomId so clients can filter by room
         (welcomeMsg as any).roomId = roomId;
         socket.emit("message", welcomeMsg);
 
@@ -55,22 +60,10 @@ export function handleRoomSocket(io: Server, socket: Socket) {
     "roomMessage",
     async (message: { event: string; data: RoomMessageData }) => {
       try {
-        let { senderId, username, roomId, text, image } = message.data;
-
-        // Fallback: if senderId is missing (seen in some patient emits), try to resolve by username
-        if (!senderId && username) {
-          const user = await prisma.user.findFirst({
-            where: { name: { equals: username, mode: "insensitive" } },
-            select: { id: true },
-          });
-          if (user) senderId = user.id;
-        }
-
-        // If still missing, do not attempt to persist; notify client
-        if (!senderId) {
-          socket.emit("error", "Missing senderId for room message");
-          return;
-        }
+        const { roomId, text, image } = message.data;
+        // Use server-verified identity — never trust client-supplied senderId/username
+        const senderId = socket.data.userId as string;
+        const username = socket.data.name as string;
 
         const messageData = {
           roomId,
@@ -82,10 +75,8 @@ export function handleRoomSocket(io: Server, socket: Socket) {
         const formattedMessage = formatMessage(messageData);
         (formattedMessage as any).roomId = roomId;
 
-        // Broadcast to everyone else in the room (avoid echo to sender to prevent duplicate on client)
         socket.to(roomId).emit("message", formattedMessage);
 
-        // Persist to DB
         await prisma.chatMessage.create({
           data: {
             senderId: senderId,
@@ -93,7 +84,7 @@ export function handleRoomSocket(io: Server, socket: Socket) {
             message: text,
             messageType: image ? "IMAGE" : "TEXT",
             imageUrl: image || null,
-            receiverId: null, // Room messages don't have a specific receiver
+            receiverId: null, 
           },
         });
       } catch (error) {

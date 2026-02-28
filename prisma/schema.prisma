@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -38,6 +35,26 @@ enum TimeSlotStatus {
   CANCELLED
 }
 
+enum MetricType {
+  WEIGHT
+  HEIGHT
+  BMI
+  BLOOD_PRESSURE_SYSTOLIC
+  BLOOD_PRESSURE_DIASTOLIC
+  HEART_RATE
+  TEMPERATURE
+  OXYGEN_SATURATION
+  BLOOD_GLUCOSE_FASTING
+  BLOOD_GLUCOSE_RANDOM
+  HBA1C
+  CHOLESTEROL_TOTAL
+  CHOLESTEROL_LDL
+  CHOLESTEROL_HDL
+  TRIGLYCERIDES
+  RESPIRATORY_RATE
+  BLOOD_GLUCOSE_POST_MEAL
+}
+
 model User {
   id             String   @id @default(uuid())
   name           String
@@ -63,7 +80,7 @@ model User {
   // Token versioning for session management
   tokenVersion Int @default(0)
 
-  // Role-specific relations
+  // Relations
   patient          Patient?       @relation("PatientUser")
   doctor           Doctor?        @relation("DoctorUser")
   admin            Admin?         @relation("AdminUser")
@@ -73,36 +90,41 @@ model User {
   adminRooms       Room[]         @relation("RoomAdmin")
   aiChats          AiChat[]       @relation("UserAiChats")
   notifications    Notification[] @relation("UserNotifications")
+  recordedMetrics  PatientHealthMetric[]
   roomId           String?
 }
 
 model Patient {
   id             String           @id @default(uuid())
   userId         String           @unique
-  location       String? // City/State/Country for patients
+  location       String?
   medicalHistory String?
   symptoms       Symptom[]
   appointments   Appointment[]    @relation("PatientAppointments")
   prescriptions  Prescription[]
   PatientHistory PatientHistory[]
   reports        Report[]
+  healthMetrics  PatientHealthMetric[]
 
   user User @relation("PatientUser", fields: [userId], references: [id])
 }
 
 model Doctor {
-  id             String           @id @default(uuid())
-  userId         String           @unique
-  specialty      String
-  clinicLocation String
-  experience     String?          @default("0")
-  education      String?
-  bio            String?
-  languages      String[]
-  appointments   Appointment[]    @relation("DoctorAppointments")
-  prescriptions  Prescription[]
-  patientHistory PatientHistory[]
-  timeSlots      TimeSlot[]
+  id                     String                   @id @default(uuid())
+  userId                 String                   @unique
+  specialty              String
+  clinicLocation         String
+  experience             String?                  @default("0")
+  education              String?
+  bio                    String?
+  languages              String[]
+  isVerified             Boolean                  @default(false)
+  appointments           Appointment[]            @relation("DoctorAppointments")
+  prescriptions          Prescription[]
+  patientHistory         PatientHistory[]
+  timeSlots              TimeSlot[]
+  blockedDates           BlockedDate[]
+  prescriptionTemplates  PrescriptionTemplate[]
 
   user User @relation("DoctorUser", fields: [userId], references: [id])
 }
@@ -110,7 +132,6 @@ model Doctor {
 model Admin {
   id          String @id @default(uuid())
   userId      String @unique
-  // Define any admin-specific attributes here, e.g., permissions JSON
   permissions Json?
 
   user User @relation("AdminUser", fields: [userId], references: [id])
@@ -120,29 +141,29 @@ model Appointment {
   id              String            @id @default(uuid())
   patientId       String
   doctorId        String
-  timeSlotId      String? // Made optional for direct booking
-  date            DateTime // YYYY-MM-DD format
-  time            String // HH:mm format
+  timeSlotId      String?
+  date            DateTime
+  time            String
   appointmentType AppointmentType   @default(OFFLINE)
   status          AppointmentStatus @default(PENDING)
   consultationFee Int?              @default(0)
   notes           String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  // Link created prescription to this appointment (optional)
   prescriptionId  String?
 
-  patient      Patient       @relation("PatientAppointments", fields: [patientId], references: [id])
-  doctor       Doctor        @relation("DoctorAppointments", fields: [doctorId], references: [id])
-  timeSlot     TimeSlot?     @relation(fields: [timeSlotId], references: [id])
+  patient      Patient        @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctor       Doctor         @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  timeSlot     TimeSlot?      @relation(fields: [timeSlotId], references: [id])
   prescription Prescription? @relation(fields: [prescriptionId], references: [id])
 
-  patientHistory PatientHistory? // <- only declare the field here, no `@relation`
-  notifications  Notification[]  @relation("AppointmentNotifications")
+  patientHistory PatientHistory?
+  notifications  Notification[] @relation("AppointmentNotifications")
 
-  @@index([doctorId, date, time])
+  @@index([doctorId, status, date])
   @@index([patientId, date])
   @@index([prescriptionId])
+  @@index([status, date])
 }
 
 model Prescription {
@@ -191,22 +212,39 @@ model TimeSlot {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  // Relations
   doctor      Doctor        @relation(fields: [doctorId], references: [id])
-  appointment Appointment[] // Optional relationship for backward compatibility
+  appointment Appointment[]
 
   @@unique([doctorId, startTime])
-  @@index([doctorId, startTime])
+  @@index([doctorId, status, startTime])
+  @@index([status, startTime])
+}
+
+model BlockedDate {
+  id        String    @id @default(uuid())
+  doctorId  String
+  date      DateTime  
+  startTime String?   // HH:mm format (e.g., "13:00")
+  endTime   String?   // HH:mm format (e.g., "15:00")
+  reason    String?
+  isFullDay Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, date])
+  @@index([doctorId])
 }
 
 model ChatMessage {
   id          String   @id @default(uuid())
   senderId    String
-  receiverId  String? // Optional for room messages
+  receiverId  String?
   roomId      String?
   message     String
-  messageType String   @default("TEXT") // TEXT or IMAGE
-  imageUrl    String? // URL for image messages
+  messageType String   @default("TEXT")
+  imageUrl    String?
   timestamp   DateTime @default(now())
 
   sender   User  @relation("SentMessages", fields: [senderId], references: [id])
@@ -221,8 +259,8 @@ model Room {
   id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
-  admin     User[]   @relation("RoomAdmin")
 
+  admin    User[]        @relation("RoomAdmin")
   members  User[]        @relation("RoomMembers")
   messages ChatMessage[] @relation("RoomMessages")
 
@@ -236,13 +274,13 @@ model Report {
   fileUrl            String
   extractedText      String?
   summary            String?
-  abnormalValues     Json? // Store as JSON for flexibility
-  possibleConditions String[] // Array of possible conditions
+  abnormalValues     Json?
+  possibleConditions String[]
   recommendation     String?
   disclaimer         String?
   mimeType           String
-  fileSize           Int // in bytes
-  status             String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  fileSize           Int
+  status             String   @default("PENDING")
   error              String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -258,11 +296,11 @@ model AiChat {
   id             String   @id @default(uuid())
   userId         String
   userMessage    String
-  aiResponse     Json // Stores the complete JSON response from Gemini
-  probableCauses String[] // Extracted from AI response for easier querying
-  severity       String // mild, moderate, severe
-  recommendation String // Extracted recommendation
-  disclaimer     String // Extracted disclaimer
+  aiResponse     Json
+  probableCauses String[]
+  severity       String
+  recommendation String
+  disclaimer     String
   createdAt      DateTime @default(now())
 
   user User @relation("UserAiChats", fields: [userId], references: [id])
@@ -273,11 +311,11 @@ model AiChat {
 model Notification {
   id            String   @id @default(uuid())
   userId        String
-  type          String // APPOINTMENT_ACCEPTED, APPOINTMENT_REJECTED, APPOINTMENT_REMINDER
+  type          String
   title         String
   message       String
   isRead        Boolean  @default(false)
-  appointmentId String? // Optional reference to appointment
+  appointmentId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -286,4 +324,48 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([createdAt])
+}
+
+model PrescriptionTemplate {
+  id               String   @id @default(uuid())
+  doctorId         String
+  name             String
+  description      String?
+  prescriptionText String
+  isActive         Boolean  @default(true)
+  tags             String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, isActive])
+  @@index([doctorId, createdAt])
+}
+
+model PatientHealthMetric {
+  id                String     @id @default(cuid())
+  patientId         String
+  patient           Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  // Metric details
+  metricType        MetricType
+  value             Float
+  unit              String
+  recordedAt        DateTime   @default(now())
+  recordedBy        String?    // Doctor/Staff ID who recorded it
+  recordedByUser    User?      @relation(fields: [recordedBy], references: [id])
+  
+  // Optional fields
+  notes             String?
+  isAbnormal        Boolean    @default(false)
+  
+  // Metadata
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  @@index([patientId, metricType, recordedAt])
+  @@index([patientId, recordedAt])
+  @@index([isAbnormal, patientId])
+  @@map("patient_health_metrics")
 }

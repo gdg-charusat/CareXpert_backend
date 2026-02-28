@@ -9,7 +9,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=prisma
     ports:
-      - "5431:5431"
+      - "5431:5432"
     networks:
       - prisma-network
     healthcheck:
@@ -24,6 +24,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - prisma-network
 
 networks:
   prisma-network:

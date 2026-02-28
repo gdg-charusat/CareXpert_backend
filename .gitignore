@@ -1,3 +1,5 @@
 node_modules/
 generated
+dist/
 .env
+package-lock.json

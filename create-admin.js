@@ -15,8 +15,7 @@ async function createAdmin() {
           email: "admin@carexpert.com",
           password: hashedPassword,
           role: "ADMIN",
-          profilePicture:
-            "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
+          profilePicture: null,
         },
       });
 
@@ -29,6 +28,8 @@ async function createAdmin() {
             canManageDoctors: true,
             canManagePatients: true,
             canViewAnalytics: true,
+            // new flag to control access to patient reports
+            canViewReports: true,
             canManageSystem: true,
           },
         },
