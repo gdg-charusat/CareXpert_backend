@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import http from "http";
 import { setupChatSocket } from "./chat/index";
 import { notFoundHandler, errorHandler } from "./middlewares/errorHandler.middleware";
+import { initializeCronJobs } from "./utils/cronJobs";
 
 dotenv.config();
 
@@ -65,6 +66,9 @@ const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Initialize cron jobs for automated tasks
+  initializeCronJobs();
 }).on("error", (err) => {
   console.error("Server listen error:", err);
   process.exit(1);

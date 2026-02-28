@@ -149,7 +149,13 @@ model Appointment {
   appointmentType AppointmentType   @default(OFFLINE)
   status          AppointmentStatus @default(PENDING)
   consultationFee Int?              @default(0)
-  notes           String?
+  notes           String?           @db.Text
+  
+  // Follow-up fields
+  followUpDate    DateTime?
+  followUpSent    Boolean           @default(false)
+  followUpSentAt  DateTime?
+  
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   prescriptionId  String?
@@ -166,6 +172,8 @@ model Appointment {
   @@index([patientId, date])
   @@index([prescriptionId])
   @@index([status, date])
+  @@index([followUpDate, followUpSent])
+  @@index([doctorId, date])
 }
 
 model Prescription {

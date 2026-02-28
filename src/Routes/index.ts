@@ -10,6 +10,7 @@ import analyticsRoutes from "./analytics.routes";
 import adminRoutes from "./admin.routes";
 import symptomRoutes from "./symptom.routes";
 import healthMetricsRoutes from "./healthMetrics.routes";
+import appointmentRoutes from "./appointment.routes";
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ router.use("/report", reportRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/admin", adminRoutes);
 router.use("/symptom", symptomRoutes);
+router.use("/appointments", appointmentRoutes);
 router.use("/", healthMetricsRoutes);
 
 export default router;
