@@ -2,6 +2,31 @@ import cron, { ScheduledTask } from "node-cron";
 import prisma from "./prismClient";
 import { sendAppointmentReminder } from "./emailService";
 
+const getEffectiveAppointmentDateTime = (
+  appointmentDate: Date,
+  appointmentTime: string
+): Date => {
+  const parsedDate = new Date(appointmentDate);
+  const [hoursPart, minutesPart] = (appointmentTime || "").split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+
+  if (
+    Number.isInteger(hours) &&
+    Number.isInteger(minutes) &&
+    hours >= 0 &&
+    hours <= 23 &&
+    minutes >= 0 &&
+    minutes <= 59
+  ) {
+    const mergedDateTime = new Date(parsedDate);
+    mergedDateTime.setHours(hours, minutes, 0, 0);
+    return mergedDateTime;
+  }
+
+  return parsedDate;
+};
+
 /**
  * Appointment reminder job - runs every 15 minutes
  * Finds appointments within the next 24 hours where reminderSent = false
@@ -16,16 +41,20 @@ export const startAppointmentReminderJob = () => {
       // Calculate time ranges
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const candidateStartDate = new Date(now);
+      candidateStartDate.setHours(0, 0, 0, 0);
+      const candidateEndDate = new Date(in24Hours);
+      candidateEndDate.setHours(23, 59, 59, 999);
 
       // Find appointments that meet criteria:
-      // - Within next 24 hours
+      // - Candidate dates that can fall in next 24 hours
       // - Status is CONFIRMED or PENDING
       // - reminderSent is false
-      const upcomingAppointments = await prisma.appointment.findMany({
+      const candidateAppointments = await prisma.appointment.findMany({
         where: {
           date: {
-            gte: now,
-            lte: in24Hours,
+            gte: candidateStartDate,
+            lte: candidateEndDate,
           },
           status: {
             in: ["CONFIRMED", "PENDING"],
@@ -54,6 +83,14 @@ export const startAppointmentReminderJob = () => {
             },
           },
         },
+      });
+
+      const upcomingAppointments = candidateAppointments.filter((appointment) => {
+        const appointmentDateTime = getEffectiveAppointmentDateTime(
+          appointment.date,
+          appointment.time
+        );
+        return appointmentDateTime >= now && appointmentDateTime <= in24Hours;
       });
 
       console.log(

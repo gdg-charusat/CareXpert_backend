@@ -386,7 +386,7 @@ describe("appointmentReminderJob", () => {
   });
 
   describe("Query Logic", () => {
-    it("should query appointments within next 24 hours", async () => {
+    it("should query candidate appointments from today start through window-day end", async () => {
       mockedPrisma.appointment.findMany.mockResolvedValue([]);
 
       await jobCallback();
@@ -394,15 +394,87 @@ describe("appointmentReminderJob", () => {
       const callArgs = mockedPrisma.appointment.findMany.mock.calls[0][0];
       const whereClause = callArgs.where;
 
-      // Verify date range query
+      // Verify candidate date range query
       expect(whereClause.date.gte).toBeInstanceOf(Date);
       expect(whereClause.date.lte).toBeInstanceOf(Date);
 
-      const now = whereClause.date.gte;
-      const in24Hours = whereClause.date.lte;
-      const diffHours = (in24Hours.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const candidateStart = whereClause.date.gte as Date;
+      const candidateEnd = whereClause.date.lte as Date;
 
-      expect(diffHours).toBeCloseTo(24, 0);
+      expect(candidateStart.getHours()).toBe(0);
+      expect(candidateStart.getMinutes()).toBe(0);
+      expect(candidateStart.getSeconds()).toBe(0);
+      expect(candidateStart.getMilliseconds()).toBe(0);
+
+      expect(candidateEnd.getHours()).toBe(23);
+      expect(candidateEnd.getMinutes()).toBe(59);
+      expect(candidateEnd.getSeconds()).toBe(59);
+      expect(candidateEnd.getMilliseconds()).toBe(999);
+    });
+
+    it("should send reminder for direct appointment using combined date and time within next 24 hours", async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(2026, 1, 28, 10, 0, 0, 0));
+
+      const mockAppointment = {
+        id: "appt-direct-future",
+        date: new Date(2026, 1, 28, 0, 0, 0, 0),
+        time: "18:00",
+        status: "PENDING",
+        reminderSent: false,
+        appointmentType: "OFFLINE",
+        patient: {
+          user: { name: "Future Patient", email: "future-patient@example.com" },
+        },
+        doctor: {
+          user: { name: "Dr. Future", email: "future-doctor@example.com" },
+          clinicLocation: "Future Clinic",
+        },
+      };
+
+      try {
+        mockedPrisma.appointment.findMany.mockResolvedValue([mockAppointment]);
+        mockedPrisma.appointment.updateMany.mockResolvedValue({ count: 1 });
+
+        await jobCallback();
+
+        expect(mockedPrisma.appointment.updateMany).toHaveBeenCalledTimes(1);
+        expect(emailService.sendAppointmentReminder).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should not send reminder for direct appointment when combined date and time is already in the past", async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(2026, 1, 28, 10, 0, 0, 0));
+
+      const mockAppointment = {
+        id: "appt-direct-past",
+        date: new Date(2026, 1, 28, 0, 0, 0, 0),
+        time: "09:00",
+        status: "PENDING",
+        reminderSent: false,
+        appointmentType: "OFFLINE",
+        patient: {
+          user: { name: "Past Patient", email: "past-patient@example.com" },
+        },
+        doctor: {
+          user: { name: "Dr. Past", email: "past-doctor@example.com" },
+          clinicLocation: "Past Clinic",
+        },
+      };
+
+      try {
+        mockedPrisma.appointment.findMany.mockResolvedValue([mockAppointment]);
+
+        await jobCallback();
+
+        expect(mockedPrisma.appointment.updateMany).not.toHaveBeenCalled();
+        expect(emailService.sendAppointmentReminder).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("should only query CONFIRMED or PENDING appointments", async () => {
