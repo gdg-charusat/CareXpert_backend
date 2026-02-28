@@ -34,8 +34,6 @@ import {
   passwordResetRequestLimiter,
   passwordResetLimiter,
   globalRateLimiter,
-  emailResendLimiter,
-  emailVerificationLimiter,
 } from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();

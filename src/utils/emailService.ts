@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { randomBytes } from "crypto";
 
 export const generateVerificationToken = (): string => {
   // Use 32 bytes for 256-bit entropy (base64url = 43 characters)
