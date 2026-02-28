@@ -5,6 +5,7 @@ import {
   logout,
   signup,
   adminSignup,
+  refreshAccessToken,
   updateDoctorProfile,
   updatePatientProfile,
   userProfile,
@@ -16,31 +17,83 @@ import {
   getCommunityMembers,
   joinCommunity,
   leaveCommunity,
+  verifyEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/user.controller";
+
 import { isAuthenticated } from "../middlewares/auth.middleware";
-import { isDoctor, isPatient } from "../utils/helper";
-import {upload} from "../middlewares/upload";
+import { isDoctor, isPatient, isAdmin } from "../utils/helper";
+import prisma from "../utils/prismClient";
+import { upload } from "../middlewares/upload";
+import {
+  loginRateLimiter,
+  signupRateLimiter,
+  globalRateLimiter,
+  emailResendLimiter,
+  emailVerificationLimiter,
+} from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/admin-signup", adminSignup);
-router.post("/login", login);
-router.post("/logout", isAuthenticated, logout);
+router.post("/signup", signupRateLimiter, signup);
+router.post(
+  "/admin-signup",
+  signupRateLimiter,
+  async (req, res, next) => {
+    const secret = req.header("X-Admin-Secret");
+    if (secret && secret === process.env.ADMIN_SIGNUP_SECRET) {
+      try {
+        const adminCount = await prisma.admin.count();
+        if (adminCount === 0) {
+          return next();
+        }
+      } catch (err) {
+        return next(err);
+      }
+    }
+    return isAuthenticated(req, res, () => isAdmin(req, res, next));
+  },
+  adminSignup
+);
+router.post("/login", loginRateLimiter, login);
+router.post("/logout", isAuthenticated, globalRateLimiter, logout);
+router.post("/refresh-token", refreshAccessToken);
 
-router.get("/patient/profile/:id", isAuthenticated, userProfile);
-router.get("/doctor/profile/:id", isAuthenticated, doctorProfile);
+router.get("/verify-email", emailVerificationLimiter, verifyEmail);
+router.post("/resend-verification-email", emailResendLimiter, resendVerificationEmail);
+
+router.post("/forgot-password", signupRateLimiter, forgotPassword);
+router.post("/reset-password", signupRateLimiter, resetPassword);
+
+router.get(
+  "/patient/profile/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  userProfile as any
+);
+
+router.get(
+  "/doctor/profile/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  doctorProfile as any
+);
 
 router.put(
   "/update-patient",
   isAuthenticated,
+  globalRateLimiter,
   isPatient,
   upload.single("profilePicture"),
   updatePatientProfile
 );
+
 router.put(
   "/update-doctor",
   isAuthenticated,
+  globalRateLimiter,
   isDoctor,
   upload.single("profilePicture"),
   updateDoctorProfile
@@ -49,18 +102,57 @@ router.put(
 router.get(
   "/authenticated-profile",
   isAuthenticated,
+  globalRateLimiter,
   getAuthenticatedUserProfile
 );
 
-// Notification routes
-router.get("/notifications", isAuthenticated, getNotifications);
-router.get("/notifications/unread-count", isAuthenticated, getUnreadNotificationCount);
-router.put("/notifications/:notificationId/read", isAuthenticated, markNotificationAsRead);
-router.put("/notifications/mark-all-read", isAuthenticated, markAllNotificationsAsRead);
+router.get(
+  "/notifications",
+  isAuthenticated,
+  globalRateLimiter,
+  getNotifications
+);
 
-// Community routes
-router.get("/communities/:roomId/members", isAuthenticated, getCommunityMembers);
-router.post("/communities/:roomId/join", isAuthenticated, joinCommunity);
-router.post("/communities/:roomId/leave", isAuthenticated, leaveCommunity);
+router.get(
+  "/notifications/unread-count",
+  isAuthenticated,
+  globalRateLimiter,
+  getUnreadNotificationCount
+);
+
+router.put(
+  "/notifications/:notificationId/read",
+  isAuthenticated,
+  globalRateLimiter,
+  markNotificationAsRead
+);
+
+router.put(
+  "/notifications/mark-all-read",
+  isAuthenticated,
+  globalRateLimiter,
+  markAllNotificationsAsRead
+);
+
+router.get(
+  "/communities/:roomId/members",
+  isAuthenticated,
+  globalRateLimiter,
+  getCommunityMembers
+);
+
+router.post(
+  "/communities/:roomId/join",
+  isAuthenticated,
+  globalRateLimiter,
+  joinCommunity
+);
+
+router.post(
+  "/communities/:roomId/leave",
+  isAuthenticated,
+  globalRateLimiter,
+  leaveCommunity
+);
 
 export default router;
