@@ -1,10 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { sendFollowUpReminderEmail } from "../utils/emailService";
-
-const prisma = new PrismaClient();
+import prisma from "../utils/prismClient";
 
 /**
  * Update appointment notes
@@ -19,7 +17,7 @@ export const updateAppointmentNotes = async (
   try {
     const { appointmentId } = req.params as { appointmentId: string };
     const { notes } = req.body;
-    const doctorId = (req as any).user?.doctorId;
+    const doctorId = (req as any).user?.doctor?.id;
 
     if (!doctorId) {
       return next(new ApiError(403, "Only doctors can update appointment notes"));
@@ -76,7 +74,7 @@ export const addFollowUpDate = async (
   try {
     const { appointmentId } = req.params as { appointmentId: string };
     const { followUpDate, notes } = req.body;
-    const doctorId = (req as any).user?.doctorId;
+    const doctorId = (req as any).user?.doctor?.id;
 
     if (!doctorId) {
       return next(new ApiError(403, "Only doctors can schedule follow-ups"));
@@ -123,8 +121,8 @@ export const addFollowUpDate = async (
           200,
           {
             id: updatedAppointment.id,
-            followUpDate: (updatedAppointment as any).followUpDate,
-            followUpSent: (updatedAppointment as any).followUpSent,
+            followUpDate: updatedAppointment.followUpDate,
+            followUpSent: updatedAppointment.followUpSent,
             notes: updatedAppointment.notes,
             updatedAt: updatedAppointment.updatedAt,
           },
@@ -148,7 +146,7 @@ export const getAppointmentsWithFollowUps = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const doctorId = (req as any).user?.doctorId;
+    const doctorId = (req as any).user?.doctor?.id;
     const { upcoming, overdue, sent } = req.query;
 
     if (!doctorId) {
@@ -202,7 +200,7 @@ export const getAppointmentsWithFollowUps = async (
       },
     });
 
-    const formattedAppointments = appointments.map((appointment: any) => ({
+    const formattedAppointments = appointments.map((appointment) => ({
       id: appointment.id,
       patient: {
         id: appointment.patient.id,
@@ -210,9 +208,9 @@ export const getAppointmentsWithFollowUps = async (
         email: appointment.patient.user.email,
       },
       date: appointment.date,
-      followUpDate: (appointment as any).followUpDate,
-      followUpSent: (appointment as any).followUpSent,
-      followUpSentAt: (appointment as any).followUpSentAt,
+      followUpDate: appointment.followUpDate,
+      followUpSent: appointment.followUpSent,
+      followUpSentAt: appointment.followUpSentAt,
       notes: appointment.notes,
     }));
 
@@ -235,7 +233,7 @@ export const sendFollowUpReminder = async (
 ): Promise<void> => {
   try {
     const { appointmentId } = req.params as { appointmentId: string };
-    const doctorId = (req as any).user?.doctorId;
+    const doctorId = (req as any).user?.doctor?.id;
     const role = (req as any).user?.role;
 
     if (!doctorId && role !== "ADMIN") {
@@ -245,7 +243,7 @@ export const sendFollowUpReminder = async (
     }
 
     // Get appointment with patient and doctor details
-    const appointment: any = await prisma.appointment.findFirst({
+    const appointment = await prisma.appointment.findFirst({
       where: {
         id: appointmentId,
         ...(doctorId ? { doctorId: doctorId } : {}),
@@ -285,12 +283,12 @@ export const sendFollowUpReminder = async (
     });
 
     // Update appointment
-    const updatedAppointment: any = await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         followUpSent: true,
         followUpSentAt: new Date(),
-      } as any,
+      },
     });
 
     res
@@ -325,8 +323,8 @@ export const getAppointmentDetails = async (
   try {
     const { appointmentId } = req.params as { appointmentId: string };
     const userId = (req as any).user?.id;
-    const doctorId = (req as any).user?.doctorId;
-    const patientId = (req as any).user?.patientId;
+    const doctorId = (req as any).user?.doctor?.id;
+    const patientId = (req as any).user?.patient?.id;
 
     if (!userId) {
       return next(new ApiError(401, "Unauthorized"));
@@ -389,9 +387,9 @@ export const getAppointmentDetails = async (
       appointmentType: appointment.appointmentType,
       consultationFee: appointment.consultationFee,
       notes: appointment.notes,
-      followUpDate: (appointment as any).followUpDate,
-      followUpSent: (appointment as any).followUpSent,
-      followUpSentAt: (appointment as any).followUpSentAt,
+      followUpDate: appointment.followUpDate,
+      followUpSent: appointment.followUpSent,
+      followUpSentAt: appointment.followUpSentAt,
       patient: {
         id: appointment.patient.id,
         name: appointment.patient.user.name,

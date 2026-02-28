@@ -18,7 +18,7 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  updateAppointmentNotes as any
+  updateAppointmentNotes
 );
 
 // Add/update follow-up date (Doctor only)
@@ -27,7 +27,7 @@ router.patch(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  addFollowUpDate as any
+  addFollowUpDate
 );
 
 // Get appointments with follow-ups (Doctor only)
@@ -36,7 +36,7 @@ router.get(
   isAuthenticated,
   globalRateLimiter,
   isDoctor,
-  getAppointmentsWithFollowUps as any
+  getAppointmentsWithFollowUps
 );
 
 // Send follow-up reminder manually (Doctor or Admin)
@@ -45,7 +45,7 @@ router.post(
   isAuthenticated,
   globalRateLimiter,
   doctorOrAdminAccess,
-  sendFollowUpReminder as any
+  sendFollowUpReminder
 );
 
 // Get appointment details with notes (Doctor or Patient)
@@ -53,7 +53,7 @@ router.get(
   "/:appointmentId/details",
   isAuthenticated,
   globalRateLimiter,
-  getAppointmentDetails as any
+  getAppointmentDetails
 );
 
 export default router;
