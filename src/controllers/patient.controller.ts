@@ -73,6 +73,8 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
         education: true,
         bio: true,
         languages: true,
+        averageRating: true,
+        totalReviews: true,
         user: {
           select: {
             name: true,
@@ -1079,6 +1081,16 @@ const getAllPatientAppointments = async (
     const appointments = await prisma.appointment.findMany({
       where: { patientId },
       include: {
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            isAnonymous: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         doctor: {
           select: {
             user: {
@@ -1093,6 +1105,8 @@ const getAllPatientAppointments = async (
             education: true,
             bio: true,
             languages: true,
+            averageRating: true,
+            totalReviews: true,
           },
         },
       },
@@ -1109,6 +1123,7 @@ const getAllPatientAppointments = async (
       consultationFee: appointment.consultationFee,
       createdAt: appointment.createdAt,
       prescriptionId: (appointment as any).prescriptionId || null,
+      review: appointment.review || null,
       doctor: {
         id: appointment.doctorId,
         name: appointment.doctor.user.name,
@@ -1119,6 +1134,8 @@ const getAllPatientAppointments = async (
         education: appointment.doctor.education,
         bio: appointment.doctor.bio,
         languages: appointment.doctor.languages,
+        averageRating: appointment.doctor.averageRating,
+        totalReviews: appointment.doctor.totalReviews,
       },
     }));
 
