@@ -60,9 +60,33 @@ export const startAppointmentReminderJob = () => {
         `Found ${upcomingAppointments.length} appointments to send reminders for`
       );
 
-      // Send reminders and update reminderSent flag
+      // Process reminders with duplicate prevention for multi-instance scenarios
+      // Strategy: Atomically claim each appointment before sending to prevent race conditions
+      let sentCount = 0;
+      let skippedCount = 0;
+      
       for (const appointment of upcomingAppointments) {
         try {
+          // ATOMIC CLAIM: Try to mark this appointment as being processed
+          // This prevents duplicate reminders when multiple backend instances run
+          const claimedAppointment = await prisma.appointment.updateMany({
+            where: {
+              id: appointment.id,
+              reminderSent: false, // Only update if still false (optimistic locking)
+            },
+            data: { reminderSent: true },
+          });
+
+          // If count is 0, another instance already claimed this appointment
+          if (claimedAppointment.count === 0) {
+            console.log(
+              ` Skipping appointment ${appointment.id}: already claimed by another instance`
+            );
+            skippedCount++;
+            continue;
+          }
+
+          // This instance successfully claimed the appointment - proceed with sending
           const patientName = appointment.patient?.user?.name || "Patient";
           const patientEmail = appointment.patient?.user?.email;
           const doctorName = appointment.doctor?.user?.name || "Doctor";
@@ -81,12 +105,12 @@ export const startAppointmentReminderJob = () => {
 
           if (!patientEmail || !doctorEmail) {
             console.warn(
-              `Skipping appointment reminder for appointment ${appointment.id}: missing email`
+              `⚠️  Appointment ${appointment.id} claimed but missing email - marked as sent to prevent retry`
             );
             continue;
           }
 
-          // Send emails
+          // Send emails (already marked as sent, so failure won't cause duplicates)
           await sendAppointmentReminder(
             patientEmail,
             patientName,
@@ -98,23 +122,24 @@ export const startAppointmentReminderJob = () => {
             appointment.appointmentType
           );
 
-          // Mark reminder as sent
-          await prisma.appointment.update({
-            where: { id: appointment.id },
-            data: { reminderSent: true },
-          });
-
+          sentCount++;
           console.log(
             `✅ Reminder sent for appointment ${appointment.id} (${patientName} - ${doctorName})`
           );
         } catch (error) {
           console.error(
-            `❌ Failed to send reminder for appointment ${appointment.id}:`,
+            `❌ Failed to process reminder for appointment ${appointment.id}:`,
             error
           );
           // Continue with next appointment, don't fail the entire job
+          // Note: If email send fails but claim succeeded, appointment stays marked as sent
+          // to prevent infinite retries. Manual intervention may be needed.
         }
       }
+
+      console.log(
+        `📊 Reminder job summary: ${sentCount} sent, ${skippedCount} skipped (claimed by other instances)`
+      );
 
       console.log(`Appointment reminder job completed at ${new Date().toISOString()}`);
     } catch (error) {
