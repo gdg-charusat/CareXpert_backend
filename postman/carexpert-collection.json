@@ -922,6 +922,230 @@
             },
             "description": "Mark notification as read"
           }
+        },
+        {
+          "name": "Create Prescription Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Type 2 Diabetes Management\",\n  \"description\": \"Standard prescription for newly diagnosed Type 2 diabetes patients\",\n  \"prescriptionText\": \"1. Metformin 500mg - Take 1 tablet twice daily with meals\\n2. Regular blood glucose monitoring\\n3. Follow up in 2 weeks\",\n  \"tags\": [\"diabetes\", \"chronic-care\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ]
+            },
+            "description": "Create a new prescription template with name, description, prescription text, and tags"
+          }
+        },
+        {
+          "name": "Get All Prescription Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates?isActive=true&tag=diabetes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ],
+              "query": [
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "description": "Filter by active status"
+                },
+                {
+                  "key": "tag",
+                  "value": "diabetes",
+                  "description": "Filter by specific tag"
+                }
+              ]
+            },
+            "description": "Get all prescription templates for logged-in doctor with optional filters by tag and active status"
+          }
+        },
+        {
+          "name": "Get Prescription Template by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Get a specific prescription template by ID"
+          }
+        },
+        {
+          "name": "Update Prescription Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Template Name\",\n  \"description\": \"Updated description\",\n  \"prescriptionText\": \"Updated prescription text\",\n  \"tags\": [\"updated\", \"tags\"],\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Update an existing prescription template (all fields are optional)"
+          }
+        },
+        {
+          "name": "Delete/Deactivate Prescription Template",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId?permanent=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ],
+              "query": [
+                {
+                  "key": "permanent",
+                  "value": "false",
+                  "description": "If true, permanently delete; otherwise deactivate (soft delete)"
+                }
+              ]
+            },
+            "description": "Delete or deactivate a prescription template. Use permanent=true to delete permanently, otherwise it will be deactivated (isActive=false)"
+          }
+        },
+        {
+          "name": "Use Template for Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"patient-uuid-here\",\n  \"customizedText\": \"Customized prescription text based on template\",\n  \"appointmentId\": \"appointment-uuid-here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId/use",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId",
+                "use"
+              ]
+            },
+            "description": "Use a prescription template to create a prescription for a patient. Can customize the text and link to an appointment. Sends email notification to patient."
+          }
+        },
+        {
+          "name": "Get Prescription Template Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                "tags"
+              ]
+            },
+            "description": "Get all unique tags from doctor's prescription templates for filtering"
+          }
         }
       ]
     },
@@ -1921,6 +2145,684 @@
               ]
             },
             "description": "Delete a medical report"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Metrics",
+      "item": [
+        {
+          "name": "Create Health Metric - Weight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"WEIGHT\",\n  \"value\": 75.5,\n  \"unit\": \"kg\",\n  \"notes\": \"Morning weight measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create a new weight measurement for a patient. The system will auto-calculate BMI if both weight and height are available."
+          }
+        },
+        {
+          "name": "Create Health Metric - Height",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"HEIGHT\",\n  \"value\": 175,\n  \"unit\": \"cm\",\n  \"notes\": \"Height measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create a new height measurement. BMI will be auto-calculated if weight is also available."
+          }
+        },
+        {
+          "name": "Create Health Metric - Blood Pressure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"BLOOD_PRESSURE_SYSTOLIC\",\n  \"value\": 120,\n  \"unit\": \"mmHg\",\n  \"notes\": \"Blood pressure reading - resting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create blood pressure systolic reading"
+          }
+        },
+        {
+          "name": "Create Health Metric - Heart Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"HEART_RATE\",\n  \"value\": 72,\n  \"unit\": \"bpm\",\n  \"recordedAt\": \"2026-02-27T10:30:00Z\",\n  \"notes\": \"Resting heart rate\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create heart rate measurement with custom timestamp"
+          }
+        },
+        {
+          "name": "Create Health Metric - Blood Glucose",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"BLOOD_GLUCOSE_FASTING\",\n  \"value\": 95,\n  \"unit\": \"mg/dL\",\n  \"notes\": \"Fasting blood glucose - morning\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create fasting blood glucose measurement"
+          }
+        },
+        {
+          "name": "Create Health Metric - Temperature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"TEMPERATURE\",\n  \"value\": 36.8,\n  \"unit\": \"°C\",\n  \"notes\": \"Body temperature\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create body temperature reading"
+          }
+        },
+        {
+          "name": "Create Health Metric - Oxygen Saturation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"OXYGEN_SATURATION\",\n  \"value\": 98,\n  \"unit\": \"%\",\n  \"notes\": \"SpO2 measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create oxygen saturation (SpO2) measurement"
+          }
+        },
+        {
+          "name": "Get All Health Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Number of records to skip"
+                },
+                {
+                  "key": "metricType",
+                  "value": "WEIGHT",
+                  "disabled": true,
+                  "description": "Filter by specific metric type"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01",
+                  "disabled": true,
+                  "description": "Start date for filtering (ISO format)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-12-31",
+                  "disabled": true,
+                  "description": "End date for filtering (ISO format)"
+                },
+                {
+                  "key": "abnormalOnly",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Show only abnormal readings"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get all health metrics for a patient with optional filters for metric type, date range, and abnormal values"
+          }
+        },
+        {
+          "name": "Get Health Metrics - Filtered by Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?metricType=WEIGHT&metricType=HEIGHT&metricType=BMI",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "metricType",
+                  "value": "WEIGHT"
+                },
+                {
+                  "key": "metricType",
+                  "value": "HEIGHT"
+                },
+                {
+                  "key": "metricType",
+                  "value": "BMI"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get metrics filtered by multiple types (Weight, Height, BMI)"
+          }
+        },
+        {
+          "name": "Get Health Metrics - Abnormal Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?abnormalOnly=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "abnormalOnly",
+                  "value": "true"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get only abnormal health metric readings"
+          }
+        },
+        {
+          "name": "Get Metric Trends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/trends?metricTypes=WEIGHT&metricTypes=HEART_RATE&period=30d",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "trends"
+              ],
+              "query": [
+                {
+                  "key": "metricTypes",
+                  "value": "WEIGHT",
+                  "description": "Metric types to analyze (can specify multiple)"
+                },
+                {
+                  "key": "metricTypes",
+                  "value": "HEART_RATE"
+                },
+                {
+                  "key": "period",
+                  "value": "30d",
+                  "description": "Time period: 7d, 30d, 90d, 180d, 1y"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get trend analysis for specific metrics including average, min, max, and percentage change over time period"
+          }
+        },
+        {
+          "name": "Get Latest Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "latest"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get the latest reading for each metric type for a patient"
+          }
+        },
+        {
+          "name": "Get Abnormal Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/alerts?period=7d",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "7d",
+                  "description": "Time period: 7d, 30d, 90d"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get abnormal metrics requiring attention (only accessible by doctors and admins)"
+          }
+        },
+        {
+          "name": "Get Health Metric by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get a specific health metric by its ID"
+          }
+        },
+        {
+          "name": "Update Health Metric",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 76.0,\n  \"notes\": \"Updated weight measurement (evening)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Update a health metric. Only the user who created it or an admin can update it."
+          }
+        },
+        {
+          "name": "Delete Health Metric",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Delete a health metric. Only the user who created it or an admin can delete it."
           }
         }
       ]

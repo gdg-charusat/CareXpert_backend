@@ -13,9 +13,11 @@ async function main() {
   await prisma.room.deleteMany({});
   await prisma.patientHistory.deleteMany({});
   await prisma.appointment.deleteMany({});
+  await prisma.blockedDate.deleteMany({});
   await prisma.timeSlot.deleteMany({});
   await prisma.report.deleteMany({});
   await prisma.aiChat.deleteMany({});
+  await prisma.patientHealthMetric.deleteMany({});
   await prisma.prescription.deleteMany({});
   await prisma.symptom.deleteMany({});
   await prisma.admin.deleteMany({});
@@ -668,6 +670,233 @@ async function main() {
 
   console.log(`✅ Created ${reports.length} medical report(s)`);
 
+  // PATIENT HEALTH METRICS
+  // Create sample health metrics for patients
+  const healthMetrics = await Promise.all([
+    // Patient 1 (John Smith) - Hypertension metrics
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[0].patient!.id,
+        metricType: "BLOOD_PRESSURE_SYSTOLIC",
+        value: 135,
+        unit: "mmHg",
+        recordedBy: doctorUsers[0].id,
+        notes: "Slightly elevated, monitor closely",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[0].patient!.id,
+        metricType: "BLOOD_PRESSURE_DIASTOLIC",
+        value: 85,
+        unit: "mmHg",
+        recordedBy: doctorUsers[0].id,
+        notes: "Slightly elevated",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[0].patient!.id,
+        metricType: "HEART_RATE",
+        value: 78,
+        unit: "bpm",
+        recordedBy: doctorUsers[0].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[0].patient!.id,
+        metricType: "WEIGHT",
+        value: 85,
+        unit: "kg",
+        recordedBy: doctorUsers[0].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[0].patient!.id,
+        metricType: "HEIGHT",
+        value: 175,
+        unit: "cm",
+        recordedBy: doctorUsers[0].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    // Patient 2 (Emma Wilson) - Respiratory metrics
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[1].patient!.id,
+        metricType: "OXYGEN_SATURATION",
+        value: 96,
+        unit: "%",
+        recordedBy: doctorUsers[1].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[1].patient!.id,
+        metricType: "RESPIRATORY_RATE",
+        value: 16,
+        unit: "breaths/min",
+        recordedBy: doctorUsers[1].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[1].patient!.id,
+        metricType: "TEMPERATURE",
+        value: 36.8,
+        unit: "°C",
+        recordedBy: doctorUsers[1].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    // Patient 3 (Michael Johnson) - Diabetes metrics
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[2].patient!.id,
+        metricType: "BLOOD_GLUCOSE_FASTING",
+        value: 128,
+        unit: "mg/dL",
+        recordedBy: doctorUsers[2].id,
+        notes: "Above normal range, medication adjustment may be needed",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[2].patient!.id,
+        metricType: "HBA1C",
+        value: 6.8,
+        unit: "%",
+        recordedBy: doctorUsers[2].id,
+        notes: "Indicates diabetes, lifestyle changes recommended",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[2].patient!.id,
+        metricType: "WEIGHT",
+        value: 92,
+        unit: "kg",
+        recordedBy: doctorUsers[2].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[2].patient!.id,
+        metricType: "HEIGHT",
+        value: 178,
+        unit: "cm",
+        recordedBy: doctorUsers[2].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    // Patient 4 - Cholesterol metrics
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[3].patient!.id,
+        metricType: "CHOLESTEROL_TOTAL",
+        value: 220,
+        unit: "mg/dL",
+        recordedBy: doctorUsers[0].id,
+        notes: "Elevated cholesterol, dietary changes recommended",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[3].patient!.id,
+        metricType: "CHOLESTEROL_LDL",
+        value: 140,
+        unit: "mg/dL",
+        recordedBy: doctorUsers[0].id,
+        notes: "LDL cholesterol high",
+        isAbnormal: true,
+        recordedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[3].patient!.id,
+        metricType: "CHOLESTEROL_HDL",
+        value: 45,
+        unit: "mg/dL",
+        recordedBy: doctorUsers[0].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    // Patient 5 (Robert Brown) - General wellness metrics
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[4].patient!.id,
+        metricType: "HEART_RATE",
+        value: 72,
+        unit: "bpm",
+        recordedBy: doctorUsers[3].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[4].patient!.id,
+        metricType: "TEMPERATURE",
+        value: 37.0,
+        unit: "°C",
+        recordedBy: doctorUsers[3].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[4].patient!.id,
+        metricType: "BLOOD_PRESSURE_SYSTOLIC",
+        value: 115,
+        unit: "mmHg",
+        recordedBy: doctorUsers[3].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.patientHealthMetric.create({
+      data: {
+        patientId: patientUsers[4].patient!.id,
+        metricType: "BLOOD_PRESSURE_DIASTOLIC",
+        value: 75,
+        unit: "mmHg",
+        recordedBy: doctorUsers[3].id,
+        isAbnormal: false,
+        recordedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000),
+      },
+    }),
+  ]);
+
+  console.log(`✅ Created ${healthMetrics.length} health metric(s)`);
+
   console.log("\n✨ Database seeding completed successfully!");
   console.log("\n📋 Summary:");
   console.log(`  - Admin Users: 1`);
@@ -676,6 +905,7 @@ async function main() {
   console.log(`  - Time Slots: ${timeSlots.length}`);
   console.log(`  - Appointments: ${appointments.length}`);
   console.log(`  - Prescriptions: ${prescriptions.length}`);
+  console.log(`  - Health Metrics: ${healthMetrics.length}`);
   console.log(`  - Rooms: ${rooms.length}`);
   console.log(`  - Messages: ${chatMessages.length}`);
   console.log(`  - AI Chats: ${aiChats.length}`);

@@ -156,9 +156,15 @@ export const validateClinicLocation = (location: string): boolean => {
 };
 
 export function isValidUUID(id: string): boolean {
+  // Standard UUID format (with hyphens)
   const uuidRegex =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  return uuidRegex.test(id);
+  
+  // CUID format (Prisma default - 25 characters, starts with 'c', alphanumeric lowercase)
+  const cuidRegex = /^c[a-z0-9]{24}$/;
+  
+  // Accept both UUID and CUID formats
+  return uuidRegex.test(id) || cuidRegex.test(id);
 }
 
 export const validateSpecialty = (specialty: string): boolean => {

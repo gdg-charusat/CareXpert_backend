@@ -8,9 +8,9 @@ import jwt from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
-import { hash } from "crypto";
+import { hash, randomBytes } from "crypto";
 import { isValidUUID, validatePassword } from "../utils/helper";
-import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail } from "../utils/emailService";
+import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmationEmail } from "../utils/emailService";
 
 const generateToken = async (userId: string) => {
   try {
@@ -23,10 +23,11 @@ const generateToken = async (userId: string) => {
 
     const accessToken = generateAccessToken(userId, user.tokenVersion);
     const refreshToken = generateRefreshToken(userId, user.tokenVersion);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     await prisma.user.update({
       where: { id: userId },
-      data: { refreshToken },
+      data: { refreshToken: hashedRefreshToken },
     });
 
     return { accessToken, refreshToken };
@@ -585,7 +586,18 @@ const refreshAccessToken = async (req: any, res: any) => {
       return res.status(401).json(new ApiError(401, "User not found"));
     }
 
-    if (user.refreshToken !== incomingRefreshToken) {
+    if (!user.refreshToken) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Refresh token has been revoked"));
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      incomingRefreshToken,
+      user.refreshToken
+    );
+
+    if (!isRefreshTokenValid) {
       return res
         .status(401)
         .json(new ApiError(401, "Refresh token has been revoked"));
@@ -1102,6 +1114,135 @@ const leaveCommunity = async (req: any, res: Response): Promise<any> => {
   }
 };
 
+const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  const { email } = req.body;
+
+  if (!email || email.trim() === "") {
+    return next(new AppError("Email is required", 400));
+  }
+
+  try {
+    // Always return same response to prevent email enumeration
+    const genericResponse = "If an account exists with this email, a password reset link has been sent.";
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    });
+
+    // If user doesn't exist, still return success to prevent email enumeration
+    if (!user) {
+      res.status(200).json(new ApiResponse(200, genericResponse));
+      return;
+    }
+
+    // Generate secure reset token (32 bytes = 64 hex characters)
+    const resetToken = randomBytes(32).toString("hex");
+    
+    // Hash the token before storing
+    const hashedToken = await bcrypt.hash(resetToken, 10);
+    
+    // Set expiration time (30 minutes from now)
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    // Update user with reset token and expiry
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpiry: expiresAt,
+      },
+    });
+
+    // Send reset email with plain token (not hashed)
+    try {
+      await sendPasswordResetEmail(user.email, user.name, resetToken);
+      console.log(`✓ Password reset email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error("Failed to send password reset email:", emailError);
+      // Still return success to prevent email enumeration
+      // But the email won't be sent - admin should check logs
+    }
+
+    res.status(200).json(new ApiResponse(200, genericResponse));
+    return;
+  } catch (error) {
+    console.error("Error in forgot password:", error);
+    return next(new AppError("Failed to process password reset request", 500));
+  }
+};
+
+const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || token.trim() === "") {
+    return next(new AppError("Reset token is required", 400));
+  }
+
+  if (!newPassword || newPassword.trim() === "") {
+    return next(new AppError("New password is required", 400));
+  }
+
+  // Validate password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return next(new AppError(passwordValidation.message || "Invalid password", 400));
+  }
+
+  try {
+    // Find users with non-expired reset tokens
+    const users = await prisma.user.findMany({
+      where: {
+        passwordResetToken: { not: null },
+        passwordResetExpiry: { gte: new Date() },
+      },
+    });
+
+    // Find the user whose hashed token matches the provided token
+    let matchedUser = null;
+    for (const user of users) {
+      if (user.passwordResetToken) {
+        const isMatch = await bcrypt.compare(token, user.passwordResetToken);
+        if (isMatch) {
+          matchedUser = user;
+          break;
+        }
+      }
+    }
+
+    if (!matchedUser) {
+      return next(new AppError("Invalid or expired reset token", 400));
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user: set new password, clear reset token, increment tokenVersion
+    await prisma.user.update({
+      where: { id: matchedUser.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        tokenVersion: { increment: 1 }, // Invalidate all existing sessions
+      },
+    });
+
+    // Send confirmation email
+    try {
+      await sendPasswordResetConfirmationEmail(matchedUser.email, matchedUser.name);
+    } catch (emailError) {
+      console.error("Failed to send password reset confirmation email:", emailError);
+    }
+
+    res.status(200).json(new ApiResponse(200, "Password reset successful"));
+    return;
+  } catch (error) {
+    console.error("Error in reset password:", error);
+    return next(new AppError("Failed to reset password", 500));
+  }
+};
+
 export {
   signup,
   adminSignup,
@@ -1122,4 +1263,6 @@ export {
   leaveCommunity,
   verifyEmail,
   resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 };

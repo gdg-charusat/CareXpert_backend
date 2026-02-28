@@ -62,7 +62,12 @@ router.get(
   isPatient,
   viewPrescriptions as any
 );
-router.get("/prescription-pdf/:id", prescriptionPdf as any);
+router.get(
+  "/prescription-pdf/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  prescriptionPdf as any
+);
 router.get("/fetchAllDoctors", fetchAllDoctors as any);
 router.get("/city-rooms", isAuthenticated, globalRateLimiter, isPatient, cityRooms as any);
 

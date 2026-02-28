@@ -35,6 +35,26 @@ enum TimeSlotStatus {
   CANCELLED
 }
 
+enum MetricType {
+  WEIGHT
+  HEIGHT
+  BMI
+  BLOOD_PRESSURE_SYSTOLIC
+  BLOOD_PRESSURE_DIASTOLIC
+  HEART_RATE
+  TEMPERATURE
+  OXYGEN_SATURATION
+  BLOOD_GLUCOSE_FASTING
+  BLOOD_GLUCOSE_RANDOM
+  HBA1C
+  CHOLESTEROL_TOTAL
+  CHOLESTEROL_LDL
+  CHOLESTEROL_HDL
+  TRIGLYCERIDES
+  RESPIRATORY_RATE
+  BLOOD_GLUCOSE_POST_MEAL
+}
+
 model User {
   id                     String   @id @default(uuid())
   name                   String
@@ -49,6 +69,8 @@ model User {
   isEmailVerified        Boolean  @default(false)
   emailVerificationToken String?
   tokenExpiresAt         DateTime?
+  passwordResetToken     String?
+  passwordResetExpiry    DateTime?
 
   // 🧹 Soft delete
   deletedAt              DateTime?
@@ -70,6 +92,7 @@ model User {
   adminRooms       Room[]         @relation("RoomAdmin")
   aiChats          AiChat[]       @relation("UserAiChats")
   notifications    Notification[] @relation("UserNotifications")
+  recordedMetrics  PatientHealthMetric[]
   roomId           String?
 }
 
@@ -83,24 +106,27 @@ model Patient {
   prescriptions  Prescription[]
   PatientHistory PatientHistory[]
   reports        Report[]
+  healthMetrics  PatientHealthMetric[]
 
   user User @relation("PatientUser", fields: [userId], references: [id])
 }
 
 model Doctor {
-  id             String           @id @default(uuid())
-  userId         String           @unique
-  specialty      String
-  clinicLocation String
-  experience     String?          @default("0")
-  education      String?
-  bio            String?
-  languages      String[]
-  isVerified     Boolean          @default(false)
-  appointments   Appointment[]    @relation("DoctorAppointments")
-  prescriptions  Prescription[]
-  patientHistory PatientHistory[]
-  timeSlots      TimeSlot[]
+  id                     String                   @id @default(uuid())
+  userId                 String                   @unique
+  specialty              String
+  clinicLocation         String
+  experience             String?                  @default("0")
+  education              String?
+  bio                    String?
+  languages              String[]
+  isVerified             Boolean                  @default(false)
+  appointments           Appointment[]            @relation("DoctorAppointments")
+  prescriptions          Prescription[]
+  patientHistory         PatientHistory[]
+  timeSlots              TimeSlot[]
+  blockedDates           BlockedDate[]
+  prescriptionTemplates  PrescriptionTemplate[]
 
   user User @relation("DoctorUser", fields: [userId], references: [id])
 }
@@ -197,6 +223,23 @@ model TimeSlot {
   @@index([status, startTime])
 }
 
+model BlockedDate {
+  id        String    @id @default(uuid())
+  doctorId  String
+  date      DateTime  
+  startTime String?   // HH:mm format (e.g., "13:00")
+  endTime   String?   // HH:mm format (e.g., "15:00")
+  reason    String?
+  isFullDay Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, date])
+  @@index([doctorId])
+}
+
 model ChatMessage {
   id          String   @id @default(uuid())
   senderId    String
@@ -284,4 +327,48 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([createdAt])
+}
+
+model PrescriptionTemplate {
+  id               String   @id @default(uuid())
+  doctorId         String
+  name             String
+  description      String?
+  prescriptionText String
+  isActive         Boolean  @default(true)
+  tags             String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, isActive])
+  @@index([doctorId, createdAt])
+}
+
+model PatientHealthMetric {
+  id                String     @id @default(cuid())
+  patientId         String
+  patient           Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  // Metric details
+  metricType        MetricType
+  value             Float
+  unit              String
+  recordedAt        DateTime   @default(now())
+  recordedBy        String?    // Doctor/Staff ID who recorded it
+  recordedByUser    User?      @relation(fields: [recordedBy], references: [id])
+  
+  // Optional fields
+  notes             String?
+  isAbnormal        Boolean    @default(false)
+  
+  // Metadata
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  @@index([patientId, metricType, recordedAt])
+  @@index([patientId, recordedAt])
+  @@index([isAbnormal, patientId])
+  @@map("patient_health_metrics")
 }
