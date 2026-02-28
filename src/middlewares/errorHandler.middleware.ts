@@ -158,6 +158,6 @@ export const notFoundHandler = (req: Request, _res: Response, next: NextFunction
 //      are automatically forwarded to the error handler (no more try/catch boilerplate)
 export const asyncHandler =
   (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
-  (req: Request, res: Response, next: NextFunction): void => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
+    (req: Request, res: Response, next: NextFunction): void => {
+      Promise.resolve(fn(req, res, next)).catch(next);
+    };

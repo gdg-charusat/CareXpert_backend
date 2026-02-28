@@ -44,10 +44,10 @@ export const sendVerificationEmail = async (
   verificationToken: string
 ): Promise<void> => {
   const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${verificationToken}`;
-  
+
   // Escape user-provided data to prevent XSS
   const escapedName = escapeHtml(name);
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -100,10 +100,10 @@ export const sendPasswordResetEmail = async (
   resetToken: string
 ): Promise<void> => {
   const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${resetToken}`;
-  
+
   // Escape user-provided data to prevent XSS
   const escapedName = escapeHtml(name);
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -155,7 +155,7 @@ export const sendPasswordResetConfirmationEmail = async (
   name: string
 ): Promise<void> => {
   const escapedName = escapeHtml(name);
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -193,7 +193,7 @@ export const sendPasswordResetConfirmationEmail = async (
 export const prescriptionTemplate = (doctorName: string, date: string): string => {
   const escapedDoctorName = escapeHtml(doctorName);
   const escapedDate = escapeHtml(date);
-  
+
   return `
     <!DOCTYPE html>
     <html>

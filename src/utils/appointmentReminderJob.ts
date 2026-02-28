@@ -101,7 +101,7 @@ export const startAppointmentReminderJob = () => {
       // Strategy: Atomically claim each appointment before sending to prevent race conditions
       let sentCount = 0;
       let skippedCount = 0;
-      
+
       for (const appointment of upcomingAppointments) {
         try {
           // ATOMIC CLAIM: Try to mark this appointment as being processed

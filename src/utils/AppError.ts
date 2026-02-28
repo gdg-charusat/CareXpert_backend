@@ -12,14 +12,14 @@ export class AppError extends Error {
 
   constructor(message: string, statusCode: number = 500, isOperational: boolean = true, errors: any[] = []) {
     super(message);
-    
+
     this.name = 'AppError';
     this.statusCode = statusCode;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
     this.isOperational = isOperational;
     this.success = false;
     this.errors = errors;
-    
+
     Error.captureStackTrace(this, this.constructor);
   }
 
