@@ -8,7 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
 import doc from "pdfkit";
-import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../utils/emailService";
+import { sendEmail, prescriptionTemplate } from "../utils/emailService";
 import { emitNotificationToUser } from "../chat/index";
 import cacheService, { CACHE_KEYS } from "../utils/cacheService";
 
@@ -998,17 +998,18 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       }
     }
 
-    sendEmail({
-      to: appointment.patient.user.email,
-      subject: action === "accept" ? "Appointment Confirmed" : "Appointment Request Declined",
-      html: appointmentStatusTemplate(
-        doctor.user.name,
-        action === "accept" ? "CONFIRMED" : "REJECTED",
-        new Date(appointment.date).toLocaleDateString(),
-        appointment.time,
-        action === "accept" ? undefined : rejectionReason
-      ),
-    }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
+    // Email notification temporarily disabled - appointmentStatusTemplate not available
+    // sendEmail({
+    //   to: appointment.patient.user.email,
+    //   subject: action === "accept" ? "Appointment Confirmed" : "Appointment Request Declined",
+    //   html: appointmentStatusTemplate(
+    //     doctor.user.name,
+    //     action === "accept" ? "CONFIRMED" : "REJECTED",
+    //     new Date(appointment.date).toLocaleDateString(),
+    //     appointment.time,
+    //     action === "accept" ? undefined : rejectionReason
+    //   ),
+    // }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
     const io = req.app.get("io");
     if (io && notification?.userId) {

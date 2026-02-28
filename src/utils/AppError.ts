@@ -7,14 +7,16 @@ export class AppError extends Error {
   status: string;
   isOperational: boolean;
   code?: string;
+  errors: any[];
 
-  constructor(message: string, statusCode: number, code?: string) {
+  constructor(message: string, statusCode: number, code?: string, errors: any[] = []) {
     super(message);
     
     this.statusCode = statusCode;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
     this.isOperational = true;
     this.code = code;
+    this.errors = errors;
     
     Error.captureStackTrace(this, this.constructor);
   }

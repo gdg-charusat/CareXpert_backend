@@ -10,38 +10,34 @@ const IS_PROD = process.env.NODE_ENV === "production";
 function handlePrismaError(err: Prisma.PrismaClientKnownRequestError): AppError {
   switch (err.code) {
     case "P2002": {
-      // Unique constraint violation
       const fields = (err.meta?.target as string[]) ?? ["field"];
       return new AppError(
         `A record with this ${fields.join(", ")} already exists.`,
         409,
-        true
+        "P2002"
       );
     }
     case "P2025":
-      // Record not found (update/delete on non-existent row)
-      return new AppError("The requested record was not found.", 404, true);
+      return new AppError("The requested record was not found.", 404, "P2025");
 
     case "P2003":
-      // Foreign key constraint violation
       return new AppError(
         "Related record not found. Check the referenced ID.",
         400,
-        true
+        "P2003"
       );
 
     case "P2014":
-      // Required relation violation
-      return new AppError("Required relation is missing.", 400, true);
+      return new AppError("Required relation is missing.", 400, "P2014");
 
     case "P2016":
-      return new AppError("Query interpretation error.", 400, true);
+      return new AppError("Query interpretation error.", 400, "P2016");
 
     default:
       return new AppError(
         IS_PROD ? "Database error." : `Prisma error ${err.code}: ${err.message}`,
         500,
-        false
+        err.code
       );
   }
 }
@@ -77,45 +73,40 @@ export const errorHandler = (
     appError = err;
 
   } else if (err instanceof ApiError) {
-    // Legacy ApiError – convert so existing controllers still work
-    appError = new AppError(err.message, err.statusCode, true, err.errors ?? []);
+    appError = new AppError(err.message, err.statusCode, undefined, err.errors ?? []);
 
   } else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     appError = handlePrismaError(err);
 
   } else if (err instanceof Prisma.PrismaClientValidationError) {
-    appError = new AppError("Invalid data supplied to the database.", 400, true);
+    appError = new AppError("Invalid data supplied to the database.", 400);
 
   } else if (err instanceof Prisma.PrismaClientInitializationError) {
-    appError = new AppError("Database connection failed.", 503, false);
+    appError = new AppError("Database connection failed.", 503);
 
   } else if (
     typeof err === "object" &&
     err !== null &&
     (err as any).name === "MulterError"
   ) {
-    // Multer file-upload errors
     const multerErr = err as any;
     const message =
       multerErr.code === "LIMIT_FILE_SIZE"
         ? "Uploaded file exceeds the maximum allowed size."
         : `File upload error: ${multerErr.message}`;
-    appError = new AppError(message, 400, true);
+    appError = new AppError(message, 400);
 
   } else if (err instanceof SyntaxError && "body" in (err as any)) {
-    // Malformed JSON body – Express body-parser throws this
-    appError = new AppError("Malformed JSON in request body.", 400, true);
+    appError = new AppError("Malformed JSON in request body.", 400);
 
   } else if (err instanceof Error) {
-    // Unknown / programmer error – keep message out of prod
     appError = new AppError(
       IS_PROD ? "Internal server error." : err.message,
-      500,
-      false
+      500
     );
 
   } else {
-    appError = new AppError("An unexpected error occurred.", 500, false);
+    appError = new AppError("An unexpected error occurred.", 500);
   }
 
   // ── 2. Log non-operational (programmer) errors ─────────────────────────────
@@ -143,7 +134,7 @@ export const errorHandler = (
 
 // ── 4. 404 catch-all for unregistered routes ───────────────────────────────
 export const notFoundHandler = (req: Request, _res: Response, next: NextFunction): void => {
-  next(new AppError(`Route ${req.method} ${req.originalUrl} not found.`, 404, true));
+  next(new AppError(`Route ${req.method} ${req.originalUrl} not found.`, 404));
 };
 
 // ── 5. asyncHandler – wraps async route handlers so thrown errors ──────────

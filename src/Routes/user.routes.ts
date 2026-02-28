@@ -21,7 +21,6 @@ import {
   resendVerificationEmail,
   forgotPassword,
   resetPassword,
-  refreshAccessToken,
 } from "../controllers/user.controller";
 
 import { isAuthenticated } from "../middlewares/auth.middleware";
@@ -34,6 +33,7 @@ import {
   emailVerificationLimiter,
   passwordResetRequestLimiter,
   passwordResetLimiter,
+  globalRateLimiter,
 } from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();
