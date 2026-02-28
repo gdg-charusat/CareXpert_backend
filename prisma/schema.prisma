@@ -56,31 +56,29 @@ enum MetricType {
 }
 
 model User {
-  id                     String   @id @default(uuid())
-  name                   String
-  email                  String   @unique
-  profilePicture         String?
-  password               String
-  role                   Role     @default(PATIENT)
-  refreshToken           String?
-
-  // 🔐 Auth & Security
-  tokenVersion           Int      @default(0)
-  isEmailVerified        Boolean  @default(false)
-  emailVerificationToken String?
-  tokenExpiresAt         DateTime?
-  passwordResetToken     String?
-  passwordResetExpiry    DateTime?
-
-  // 🧹 Soft delete
-  deletedAt              DateTime?
-
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  // 📈 Performance indexes
-  @@index([name])
-  @@index([email, role])
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  profilePicture String?
+  password       String
+  role           Role     @default(PATIENT)
+  refreshToken   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+  
+  // Email verification fields
+  isEmailVerified           Boolean   @default(false)
+  emailVerificationToken    String?
+  tokenExpiresAt            DateTime?
+  lastVerificationEmailSent DateTime?
+  
+  // Password reset fields
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
+  
+  // Token versioning for session management
+  tokenVersion Int @default(0)
 
   // Relations
   patient          Patient?       @relation("PatientUser")

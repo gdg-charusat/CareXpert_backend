@@ -1,24 +1,52 @@
-import { createClient } from 'redis';
+/**
+ * Redis client configuration
+ * Used for rate limiting and caching
+ */
 
-const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  socket: {
-    reconnectStrategy: (retries) => {
-      if (retries > 3) return false; // stop reconnecting after 3 attempts
-      return Math.min(retries * 200, 1000);
-    },
-  },
-});
+// For now, we use in-memory storage for rate limiting
+// This can be replaced with Redis when redis is available
 
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
+interface RateLimitStore {
+  [key: string]: {
+    count: number;
+    resetTime: number;
+  };
+}
 
-(async () => {
-  try {
-    await redisClient.connect();
-  } catch (error) {
-    console.error('Failed to connect to Redis:', error);
+const rateLimitStore: RateLimitStore = {};
+
+export const getRateLimitKey = (key: string): { count: number; resetTime: number } | null => {
+  const entry = rateLimitStore[key];
+  if (!entry) return null;
+  if (Date.now() > entry.resetTime) {
+    delete rateLimitStore[key];
+    return null;
   }
-})();
+  return entry;
+};
 
-export default redisClient;
+export const setRateLimitKey = (key: string, count: number, ttlMs: number): void => {
+  rateLimitStore[key] = {
+    count,
+    resetTime: Date.now() + ttlMs,
+  };
+};
+
+export const incrementRateLimitKey = (key: string, ttlMs: number): number => {
+  const entry = rateLimitStore[key];
+  if (!entry || Date.now() > entry.resetTime) {
+    rateLimitStore[key] = {
+      count: 1,
+      resetTime: Date.now() + ttlMs,
+    };
+    return 1;
+  }
+  entry.count += 1;
+  return entry.count;
+};
+
+export default {
+  getRateLimitKey,
+  setRateLimitKey,
+  incrementRateLimitKey,
+};

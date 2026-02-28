@@ -1,95 +1,153 @@
 /**
- * AppError – the single source of truth for operational (user-facing) errors.
- *
- * Usage:
- *   throw new AppError("Doctor not found", 404);
- *   throw new AppError("Email already in use", 409, true, [{ field: "email" }]);
- *
- * `isOperational = true`  → known, expected errors (4xx, business logic failures)
- * `isOperational = false` → programmer errors / bugs (should never reach prod users)
+ * Custom Application Error Class
+ * Extends Error with additional properties for HTTP status and operational errors
  */
 export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly isOperational: boolean;
-  public readonly errors: any[];
-  public readonly success: false = false;
+  statusCode: number;
+  status: string;
+  isOperational: boolean;
+  success: boolean;
+  code?: string;
+  errors: any[];
 
-  constructor(
-    message: string,
-    statusCode: number = 500,
-    isOperational: boolean = true,
-    errors: any[] = []
-  ) {
+  constructor(message: string, statusCode: number = 500, isOperational: boolean = true, errors: any[] = []) {
     super(message);
 
-    // Restore prototype chain (needed when targeting ES5-compiled JS)
-    Object.setPrototypeOf(this, new.target.prototype);
-
-    this.name = this.constructor.name;
+    this.name = 'AppError';
     this.statusCode = statusCode;
+    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
     this.isOperational = isOperational;
+    this.success = false;
     this.errors = errors;
 
     Error.captureStackTrace(this, this.constructor);
   }
 
+  /**
+   * Create a Bad Request error (400)
+   */
+  static badRequest(message: string, code?: string): AppError {
+    const err = new AppError(message, 400, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create an Unauthorized error (401)
+   */
+  static unauthorized(message: string = 'Unauthorized', code?: string): AppError {
+    const err = new AppError(message, 401, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create a Forbidden error (403)
+   */
+  static forbidden(message: string = 'Forbidden', code?: string): AppError {
+    const err = new AppError(message, 403, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create a Not Found error (404)
+   */
+  static notFound(message: string = 'Resource not found', code?: string): AppError {
+    const err = new AppError(message, 404, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create a Conflict error (409)
+   */
+  static conflict(message: string, code?: string): AppError {
+    const err = new AppError(message, 409, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create a Too Many Requests error (429)
+   */
+  static tooManyRequests(message: string = 'Too many requests', code?: string): AppError {
+    const err = new AppError(message, 429, true);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Create an Internal Server Error (500)
+   */
+  static internal(message: string = 'Internal server error', code?: string): AppError {
+    const err = new AppError(message, 500, false);
+    err.code = code;
+    return err;
+  }
+
+  /**
+   * Convert error to JSON response format
+   */
   toJSON() {
     return {
-      success: false as const,
+      success: false,
       statusCode: this.statusCode,
       message: this.message,
-      ...(this.errors.length > 0 ? { errors: this.errors } : {}),
+      ...(this.errors.length > 0 && { errors: this.errors }),
     };
   }
 }
 
-// ── Convenience sub-classes ───────────────────────────────────────────────────
+// ─── Convenience Error Subclasses ───────────────────────────────────────────
 
-/** 400 Bad Request */
 export class BadRequestError extends AppError {
-  constructor(message = "Bad request", errors: any[] = []) {
+  constructor(message: string = 'Bad Request', errors: any[] = []) {
     super(message, 400, true, errors);
+    this.name = 'BadRequestError';
   }
 }
 
-/** 401 Unauthorized */
 export class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized") {
-    super(message, 401, true);
+  constructor(message: string = 'Unauthorized', errors: any[] = []) {
+    super(message, 401, true, errors);
+    this.name = 'UnauthorizedError';
   }
 }
 
-/** 403 Forbidden */
 export class ForbiddenError extends AppError {
-  constructor(message = "Forbidden") {
-    super(message, 403, true);
+  constructor(message: string = 'Forbidden', errors: any[] = []) {
+    super(message, 403, true, errors);
+    this.name = 'ForbiddenError';
   }
 }
 
-/** 404 Not Found */
 export class NotFoundError extends AppError {
-  constructor(message = "Resource not found") {
-    super(message, 404, true);
+  constructor(message: string = 'Not Found', errors: any[] = []) {
+    super(message, 404, true, errors);
+    this.name = 'NotFoundError';
   }
 }
 
-/** 409 Conflict */
 export class ConflictError extends AppError {
-  constructor(message = "Conflict") {
-    super(message, 409, true);
+  constructor(message: string = 'Conflict', errors: any[] = []) {
+    super(message, 409, true, errors);
+    this.name = 'ConflictError';
   }
 }
 
-/** 422 Unprocessable Entity – validation failures */
 export class ValidationError extends AppError {
-  constructor(message = "Validation failed", errors: any[] = []) {
+  constructor(message: string = 'Validation Error', errors: any[] = []) {
     super(message, 422, true, errors);
+    this.name = 'ValidationError';
   }
 }
 
-/** 500 Internal Server Error – non-operational (programmer bugs) */
 export class InternalError extends AppError {
-  constructor(message = "Internal server error") {
-    super(message, 500, false);
+  constructor(message: string = 'Internal Server Error', errors: any[] = []) {
+    super(message, 500, false, errors);
+    this.name = 'InternalError';
   }
 }
+
+export default AppError;

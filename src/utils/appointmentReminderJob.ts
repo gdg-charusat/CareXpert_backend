@@ -1,6 +1,6 @@
 import cron, { ScheduledTask } from "node-cron";
 import prisma from "./prismClient";
-import { sendAppointmentReminder } from "./emailService";
+import { sendAppointmentReminder, patientAppointmentReminderTemplate, doctorAppointmentReminderTemplate } from "./emailService";
 
 const getEffectiveAppointmentDateTime = (
   appointmentDate: Date,
@@ -101,7 +101,7 @@ export const startAppointmentReminderJob = () => {
       // Strategy: Atomically claim each appointment before sending to prevent race conditions
       let sentCount = 0;
       let skippedCount = 0;
-      
+
       for (const appointment of upcomingAppointments) {
         try {
           // ATOMIC CLAIM: Try to mark this appointment as being processed
@@ -147,7 +147,10 @@ export const startAppointmentReminderJob = () => {
             continue;
           }
 
-          // Send emails (already marked as sent, so failure won't cause duplicates)
+          // Determine appointment mode (appointmentType: ONLINE or OFFLINE maps to IN_PERSON)
+          const mode = appointment.appointmentType === "ONLINE" ? "ONLINE" : "IN_PERSON";
+
+          // Send reminder emails to both patient and doctor in a single call
           await sendAppointmentReminder(
             patientEmail,
             patientName,
@@ -156,7 +159,7 @@ export const startAppointmentReminderJob = () => {
             appointmentDate,
             appointmentTime,
             clinicLocation,
-            appointment.appointmentType
+            mode as "ONLINE" | "IN_PERSON"
           );
 
           sentCount++;

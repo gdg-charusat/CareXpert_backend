@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-const generateAccessToken = (userId: string, tokenVersion: number): string => {
+const generateAccessToken = (userId: string, tokenVersion: number = 0): string => {
     const expiresIn = process.env.ACCESS_TOKEN_EXPIRES_IN || "1d";
 
     return jwt.sign(
@@ -10,7 +10,7 @@ const generateAccessToken = (userId: string, tokenVersion: number): string => {
     )
 }
 
-const generateRefreshToken = (userId: string, tokenVersion: number): string => {
+const generateRefreshToken = (userId: string, tokenVersion: number = 0): string => {
     const expiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
 
     return jwt.sign(

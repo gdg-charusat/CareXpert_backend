@@ -1,171 +1,134 @@
 import { Request, Response, NextFunction } from "express";
-import rateLimit from "express-rate-limit";
-import redisClient from "../utils/redis";
+import { incrementRateLimitKey, getRateLimitKey } from "../utils/redis";
 
-const noRateLimit = (_req: Request, _res: Response, next: NextFunction) =>
-  next();
+/**
+ * Rate Limiter Middleware
+ * Provides various rate limiting strategies for different endpoints
+ */
 
-const memoryStore = new Map<string, { count: number; resetTime: number }>();
-
-const redisStore = {
-  async increment(key: string): Promise<{ totalHits: number; resetTime: Date }> {
-    try {
-      if (!redisClient.isReady) {
-        return memoryFallback(key);
-      }
-      const now = Date.now();
-      const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000');
-      const resetTime = new Date(now + windowMs);
-
-      const current = await redisClient.get(key);
-
-      if (!current) {
-        await redisClient.set(key, '1', { PX: windowMs as any });
-        return { totalHits: 1, resetTime };
-      }
-
-
-      const totalHits = await redisClient.incr(key) as number;
-      return { totalHits, resetTime };
-
-    } catch (error) {
-      return memoryFallback(key);
-    }
-  },
-
-  async decrement(key: string): Promise<void> {
-    try {
-      await redisClient.decr(key);
-    } catch (_) { }
-  },
-
-  async resetKey(key: string): Promise<void> {
-    try {
-      await redisClient.del(key);
-    } catch (_) { }
-  },
-};
-
-function memoryFallback(key: string): { totalHits: number; resetTime: Date } {
-  const now = Date.now();
-  const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000');
-  const entry = memoryStore.get(key);
-
-  if (!entry || now > entry.resetTime) {
-    memoryStore.set(key, { count: 1, resetTime: now + windowMs });
-    return { totalHits: 1, resetTime: new Date(now + windowMs) };
-  }
-
-  entry.count++;
-  memoryStore.set(key, entry);
-  return { totalHits: entry.count, resetTime: new Date(entry.resetTime) };
+interface RateLimiterOptions {
+  windowMs: number;
+  max: number;
+  message?: string;
+  keyGenerator?: (req: Request) => string;
 }
 
-export const loginRateLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
-  max: parseInt(process.env.LOGIN_RATE_LIMIT || '5'),
-  message: { success: false, message: 'Too many login attempts. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: (req: Request) => {
-    const identifier =
-      (req as any)?.body?.email ||
-      (req as any)?.body?.data ||
-      req.ip ||
-      "unknown";
+/**
+ * Create a rate limiter middleware
+ */
+const createRateLimiter = (options: RateLimiterOptions) => {
+  const {
+    windowMs,
+    max,
+    message = "Too many requests, please try again later.",
+    keyGenerator = (req: Request) => req.ip || "unknown",
+  } = options;
 
-    return typeof identifier === "string" ? identifier : String(identifier);
-  },
-  handler: (req: Request, res: Response) => {
-    const retryAfter = Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000);
-    res.status(429).set('Retry-After', retryAfter.toString()).json({
-      success: false,
-      message: 'Too many login attempts. Please try again later.',
-      retryAfter,
-    });
-  },
-  store: {
-    increment: (key: string) => redisStore.increment(`login:${key}`),
-    decrement: (key: string) => redisStore.decrement(`login:${key}`),
-    resetKey: (key: string) => redisStore.resetKey(`login:${key}`),
-  },
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const key = `ratelimit:${keyGenerator(req)}`;
+    const currentCount = incrementRateLimitKey(key, windowMs);
+
+    if (currentCount > max) {
+      const entry = getRateLimitKey(key);
+      const retryAfter = entry ? Math.ceil((entry.resetTime - Date.now()) / 1000) : 60;
+      
+      res.setHeader("Retry-After", retryAfter.toString());
+      res.setHeader("X-RateLimit-Limit", max.toString());
+      res.setHeader("X-RateLimit-Remaining", "0");
+      
+      res.status(429).json({
+        success: false,
+        statusCode: 429,
+        message,
+        retryAfter,
+      });
+      return;
+    }
+
+    res.setHeader("X-RateLimit-Limit", max.toString());
+    res.setHeader("X-RateLimit-Remaining", (max - currentCount).toString());
+    
+    next();
+  };
+};
+
+/**
+ * Login rate limiter - 5 attempts per 15 minutes per IP
+ */
+export const loginRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: "Too many login attempts. Please try again in 15 minutes.",
+  keyGenerator: (req: Request) => `login:${req.ip}`,
 });
 
-export const authenticatedRateLimiter = rateLimit({
-  windowMs: 60000,
-  max: parseInt(process.env.AUTHENTICATED_RATE_LIMIT || '100'),
-  message: { success: false, message: 'Too many requests. Please slow down.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: (req: Request) => {
-    return (req as any).user?.id || req.ip || 'unknown';
-  },
-  skip: (req: Request) => !(req as any).user,
-  handler: (req: Request, res: Response) => {
-    res.status(429).set('Retry-After', '60').json({
-      success: false,
-      message: 'Too many requests. Please slow down.',
-      retryAfter: 60,
-    });
-  },
-  store: {
-    increment: (key: string) => redisStore.increment(`auth:${key}`),
-    decrement: (key: string) => redisStore.decrement(`auth:${key}`),
-    resetKey: (key: string) => redisStore.resetKey(`auth:${key}`),
-  },
+/**
+ * Signup rate limiter - 3 signups per hour per IP
+ */
+export const signupRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: "Too many signup attempts. Please try again in 1 hour.",
+  keyGenerator: (req: Request) => `signup:${req.ip}`,
 });
 
-export const unauthenticatedRateLimiter = rateLimit({
-  windowMs: 60000,
-  max: parseInt(process.env.UNAUTHENTICATED_RATE_LIMIT || '20'),
-  message: { success: false, message: 'Too many requests. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: (req: Request) => req.ip || 'unknown',
-  skip: (req: Request) => !!(req as any).user,
-  handler: (req: Request, res: Response) => {
-    res.status(429).set('Retry-After', '60').json({
-      success: false,
-      message: 'Too many requests. Please try again later.',
-      retryAfter: 60,
-    });
-  },
-  store: {
-    increment: (key: string) => redisStore.increment(`unauth:${key}`),
-    decrement: (key: string) => redisStore.decrement(`unauth:${key}`),
-    resetKey: (key: string) => redisStore.resetKey(`unauth:${key}`),
-  },
+/**
+ * Global rate limiter - 100 requests per minute per IP
+ */
+export const globalRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,
+  message: "Too many requests. Please slow down.",
+  keyGenerator: (req: Request) => `global:${req.ip}`,
 });
 
-export const signupRateLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
-  max: parseInt(process.env.SIGNUP_RATE_LIMIT || '10'),
-  message: { success: false, message: 'Too many signup attempts. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: (req: Request) => req.ip || 'unknown',
-  handler: (req: Request, res: Response) => {
-    const retryAfter = Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000);
-    res.status(429).set('Retry-After', retryAfter.toString()).json({
-      success: false,
-      message: 'Too many signup attempts. Please try again later.',
-      retryAfter,
-    });
-  },
-  store: {
-    increment: (key: string) => redisStore.increment(`signup:${key}`),
-    decrement: (key: string) => redisStore.decrement(`signup:${key}`),
-    resetKey: (key: string) => redisStore.resetKey(`signup:${key}`),
-  },
+/**
+ * Email resend rate limiter - 3 resends per hour per email
+ */
+export const emailResendLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: "Too many email resend requests. Please try again in 1 hour.",
+  keyGenerator: (req: Request) => `email-resend:${(req.body?.email || "").trim().toLowerCase()}`,
 });
 
-export const globalRateLimiter = (req: Request, res: Response, next: any) => {
-  if ((req as any).user) {
-    return authenticatedRateLimiter(req, res, next);
-  }
-  return unauthenticatedRateLimiter(req, res, next);
+/**
+ * Email verification rate limiter - 10 attempts per hour per IP
+ */
+export const emailVerificationLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  message: "Too many verification attempts. Please try again later.",
+  keyGenerator: (req: Request) => `email-verify:${req.ip}`,
+});
+
+/**
+ * Password reset request rate limiter - 3 requests per hour per email
+ */
+export const passwordResetRequestLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: "Too many password reset requests. Please try again in 1 hour.",
+  keyGenerator: (req: Request) => `pwd-reset-req:${(req.body?.email || "").trim().toLowerCase()}`,
+});
+
+/**
+ * Password reset rate limiter - 5 attempts per hour per IP
+ */
+export const passwordResetLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: "Too many password reset attempts. Please try again later.",
+  keyGenerator: (req: Request) => `pwd-reset:${req.ip}`,
+});
+
+export default {
+  loginRateLimiter,
+  signupRateLimiter,
+  globalRateLimiter,
+  emailResendLimiter,
+  emailVerificationLimiter,
+  passwordResetRequestLimiter,
+  passwordResetLimiter,
+  createRateLimiter,
 };
