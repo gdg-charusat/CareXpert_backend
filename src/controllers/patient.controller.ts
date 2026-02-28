@@ -49,19 +49,19 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
         AND: [
           specialtyQuery
             ? {
-                specialty: {
-                  contains: specialtyQuery,
-                  mode: "insensitive",
-                },
-              }
+              specialty: {
+                contains: specialtyQuery,
+                mode: "insensitive",
+              },
+            }
             : {},
           locationQuery
             ? {
-                clinicLocation: {
-                  contains: locationQuery,
-                  mode: "insensitive",
-                },
-              }
+              clinicLocation: {
+                contains: locationQuery,
+                mode: "insensitive",
+              },
+            }
             : {},
         ],
       },
@@ -334,13 +334,28 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
 
 const fetchAllDoctors = async (req: any, res: Response) => {
   try {
-    // ── Cache lookup ──────────────────────────────────────────────────────
-    const cachedDoctors = await cacheService.get<any[]>(CACHE_KEYS.ALL_DOCTORS);
-    if (cachedDoctors) {
-      return res.status(200).json(new ApiResponse(200, cachedDoctors));
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    // ── Cache lookup (only for non-paginated requests) ──────────────────
+    if (!hasPagination) {
+      const cachedDoctors = await cacheService.get<any[]>(CACHE_KEYS.ALL_DOCTORS);
+      if (cachedDoctors) {
+        return res.status(200).json(new ApiResponse(200, cachedDoctors));
+      }
     }
 
-    const doctorss = await prisma.doctor.findMany({
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.doctor.count();
+
+    const findOptions: any = {
       include: {
         user: {
           select: {
@@ -349,7 +364,14 @@ const fetchAllDoctors = async (req: any, res: Response) => {
           },
         },
       },
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const doctorss = await prisma.doctor.findMany(findOptions);
 
     const doctors = await Promise.all(
       doctorss.map(async (doctor: any) => {
@@ -380,7 +402,13 @@ const fetchAllDoctors = async (req: any, res: Response) => {
       })
     );
 
-    // ── Cache result ───────────────────────────────────────────────────────
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, doctors, "Doctors fetched successfully", meta));
+    }
+
+    // ── Cache result (only for non-paginated requests) ──────────────────
     await cacheService.set(CACHE_KEYS.ALL_DOCTORS, doctors, CACHE_TTL.ALL_DOCTORS);
 
     return res.status(200).json(new ApiResponse(200, doctors));
@@ -584,7 +612,22 @@ const viewPrescriptions = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const Prescriptions = await prisma.prescription.findMany({
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.prescription.count({
+      where: { patientId },
+    });
+
+    const findOptions: any = {
       where: { patientId },
       include: {
         doctor: {
@@ -600,7 +643,14 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       orderBy: {
         dateIssued: "desc",
       },
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const Prescriptions = await prisma.prescription.findMany(findOptions);
 
     const formatted = Prescriptions.map((p: any) => ({
       id: p.id,
@@ -610,6 +660,12 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       specialty: p.doctor.specialty,
       clinicLocation: p.doctor.clinicLocation,
     }));
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, formatted, "Prescriptions fetched successfully", meta));
+    }
 
     return res.status(200).json(new ApiResponse(200, formatted));
   } catch (error) {
@@ -1078,7 +1134,22 @@ const getAllPatientAppointments = async (
       return;
     }
 
-    const appointments = await prisma.appointment.findMany({
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.appointment.count({
+      where: { patientId },
+    });
+
+    const findOptions: any = {
       where: { patientId },
       include: {
         review: {
@@ -1111,7 +1182,14 @@ const getAllPatientAppointments = async (
         },
       },
       orderBy: [{ date: "asc" }, { time: "asc" }],
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const appointments = await prisma.appointment.findMany(findOptions);
 
     const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
@@ -1138,6 +1216,12 @@ const getAllPatientAppointments = async (
         totalReviews: appointment.doctor.totalReviews,
       },
     }));
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, formattedAppointments, "Appointments fetched successfully", meta));
+    }
 
     return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {

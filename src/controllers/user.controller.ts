@@ -862,33 +862,43 @@ const getAuthenticatedUserProfile = async (
 const getNotifications = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
-    const { page = 1, limit = 10 } = req.query;
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
 
-    const notifications = await prisma.notification.findMany({
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.notification.count({
+      where: { userId },
+    });
+
+    const findOptions: any = {
       where: { userId },
       orderBy: { createdAt: "desc" },
-      skip: (Number(page) - 1) * Number(limit),
-      take: Number(limit),
-    });
+    };
 
-    const total = await prisma.notification.count({
-      where: { userId },
-    });
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const notifications = await prisma.notification.findMany(findOptions);
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(
+        new ApiResponse(200, { notifications }, "Notifications fetched successfully", meta)
+      );
+    }
 
     return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          notifications,
-          pagination: {
-            page: Number(page),
-            limit: Number(limit),
-            total,
-            pages: Math.ceil(total / Number(limit)),
-          },
-        },
-        "Notifications fetched successfully",
-      ),
+      new ApiResponse(200, { notifications }, "Notifications fetched successfully")
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -1138,10 +1148,10 @@ const forgotPassword = async (req: Request, res: Response, next: NextFunction) =
 
     // Generate secure reset token (32 bytes = 64 hex characters)
     const resetToken = randomBytes(32).toString("hex");
-    
+
     // Hash the token before storing
     const hashedToken = await bcrypt.hash(resetToken, 10);
-    
+
     // Set expiration time (30 minutes from now)
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
