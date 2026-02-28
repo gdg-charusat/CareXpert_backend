@@ -103,6 +103,7 @@ model Patient {
   medicalHistory String?
   symptoms       Symptom[]
   appointments   Appointment[]    @relation("PatientAppointments")
+  reviews        Review[]
   prescriptions  Prescription[]
   PatientHistory PatientHistory[]
   reports        Report[]
@@ -121,7 +122,10 @@ model Doctor {
   bio                    String?
   languages              String[]
   isVerified             Boolean                  @default(false)
+  averageRating          Float                    @default(0)
+  totalReviews           Int                      @default(0)
   appointments           Appointment[]            @relation("DoctorAppointments")
+  reviews                Review[]
   prescriptions          Prescription[]
   patientHistory         PatientHistory[]
   timeSlots              TimeSlot[]
@@ -138,7 +142,6 @@ model Admin {
 
   user User @relation("AdminUser", fields: [userId], references: [id])
 }
-
 model Appointment {
   id              String            @id @default(uuid())
   patientId       String
@@ -150,6 +153,7 @@ model Appointment {
   status          AppointmentStatus @default(PENDING)
   consultationFee Int?              @default(0)
   notes           String?           @db.Text
+  reminderSent    Boolean           @default(false)
   
   // Follow-up fields
   followUpDate    DateTime?
@@ -166,6 +170,7 @@ model Appointment {
   prescription Prescription? @relation(fields: [prescriptionId], references: [id])
 
   patientHistory PatientHistory?
+  review         Review?
   notifications  Notification[] @relation("AppointmentNotifications")
 
   @@index([doctorId, status, date])
@@ -378,4 +383,23 @@ model PatientHealthMetric {
   @@index([patientId, recordedAt])
   @@index([isAbnormal, patientId])
   @@map("patient_health_metrics")
+}
+
+model Review {
+  id            String      @id @default(uuid())
+  appointmentId String      @unique
+  patientId     String
+  doctorId      String
+  rating        Int
+  comment       String?
+  isAnonymous   Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, createdAt])
+  @@index([patientId, createdAt])
 }

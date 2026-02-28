@@ -79,6 +79,121 @@ export const prescriptionTemplate = (
   `;
 };
 
+/**
+ * Email template for patient appointment reminder
+ */
+export const patientAppointmentReminderTemplate = (
+  patientName: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string,
+  appointmentType: string
+): string => {
+  const typeLabel = appointmentType === "ONLINE" ? "Video Call" : "In-Person";
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="margin: 0;">📅 Appointment Reminder</h1>
+      </div>
+      <div style="padding: 30px; background-color: #f9f9f9; border-radius: 0 0 10px 10px;">
+        <p style="color: #333; font-size: 16px;">Hi ${patientName},</p>
+        
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+          This is a friendly reminder about your upcoming appointment with <strong>Dr. ${doctorName}</strong>.
+        </p>
+        
+        <div style="background-color: #e8f0ff; padding: 20px; border-left: 4px solid #667eea; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 8px 0; color: #333;"><strong>📅 Date:</strong> ${appointmentDate}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>⏰ Time:</strong> ${appointmentTime}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>📍 Location:</strong> ${clinicLocation || "Online"}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>📱 Type:</strong> ${typeLabel}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+          Please arrive 10 minutes early for in-person appointments. If you need to reschedule or cancel, 
+          please notify us as soon as possible.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        
+        <p style="color: #999; font-size: 12px;">
+          This is an automated message from CareXpert. Please do not reply to this email.
+        </p>
+      </div>
+    </div>
+  `;
+};
+
+/**
+ * Email template for doctor appointment reminder
+ */
+export const doctorAppointmentReminderTemplate = (
+  doctorName: string,
+  patientName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string,
+  appointmentType: string
+): string => {
+  const typeLabel = appointmentType === "ONLINE" ? "Video Call" : "In-Person";
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="margin: 0;">📅 Upcoming Appointment</h1>
+      </div>
+      <div style="padding: 30px; background-color: #f9f9f9; border-radius: 0 0 10px 10px;">
+        <p style="color: #333; font-size: 16px;">Hi Dr. ${doctorName},</p>
+        
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+          This is a reminder about your upcoming appointment with <strong>${patientName}</strong>.
+        </p>
+        
+        <div style="background-color: #e8f0ff; padding: 20px; border-left: 4px solid #667eea; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 8px 0; color: #333;"><strong>👤 Patient:</strong> ${patientName}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>📅 Date:</strong> ${appointmentDate}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>⏰ Time:</strong> ${appointmentTime}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>📍 Location:</strong> ${clinicLocation || "Online"}</p>
+          <p style="margin: 8px 0; color: #333;"><strong>📱 Type:</strong> ${typeLabel}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+          Please ensure you're prepared for this ${appointmentType === "ONLINE" ? "video consultation" : "in-person visit"}.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+        
+        <p style="color: #999; font-size: 12px;">
+          This is an automated message from CareXpert. Please do not reply to this email.
+        </p>
+      </div>
+    </div>
+  `;
+};
+
+/**
+ * @deprecated Use patientAppointmentReminderTemplate or doctorAppointmentReminderTemplate instead
+ */
+export const appointmentReminderTemplate = (
+  recipientName: string,
+  patientName: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string,
+  appointmentType: string
+): string => {
+  // Kept for backward compatibility - delegates to patient template
+  return patientAppointmentReminderTemplate(
+    recipientName,
+    doctorName,
+    appointmentDate,
+    appointmentTime,
+    clinicLocation,
+    appointmentType
+  );
+};
+
 export const sendVerificationEmail = async (
   email: string,
   name: string,
@@ -190,6 +305,49 @@ export const sendWelcomeEmail = async (
   }
 };
 
+export const sendAppointmentReminder = async (
+  patientEmail: string,
+  patientName: string,
+  doctorEmail: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string,
+  appointmentType: string
+): Promise<void> => {
+  try {
+    // Send personalized email to patient
+    await sendEmail({
+      to: patientEmail,
+      subject: `Appointment Reminder - ${appointmentDate}`,
+      html: patientAppointmentReminderTemplate(
+        patientName,
+        doctorName,
+        appointmentDate,
+        appointmentTime,
+        clinicLocation,
+        appointmentType
+      ),
+    });
+
+    // Send personalized email to doctor
+    await sendEmail({
+      to: doctorEmail,
+      subject: `Upcoming Appointment - ${appointmentDate}`,
+      html: doctorAppointmentReminderTemplate(
+        doctorName,
+        patientName,
+        appointmentDate,
+        appointmentTime,
+        clinicLocation,
+        appointmentType
+      ),
+    });
+  } catch (error) {
+    console.error("Error sending appointment reminder:", error);
+    throw error;
+  }
+}
 export const sendPasswordResetEmail = async (
   email: string,
   name: string,

@@ -11,6 +11,7 @@ import adminRoutes from "./admin.routes";
 import symptomRoutes from "./symptom.routes";
 import healthMetricsRoutes from "./healthMetrics.routes";
 import appointmentRoutes from "./appointment.routes";
+import reviewRoutes from "./review.routes";
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use("/admin", adminRoutes);
 router.use("/symptom", symptomRoutes);
 router.use("/appointments", appointmentRoutes);
 router.use("/", healthMetricsRoutes);
+router.use("/review", reviewRoutes);
 
 export default router;
