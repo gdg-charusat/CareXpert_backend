@@ -140,7 +140,6 @@ model Admin {
 
   user User @relation("AdminUser", fields: [userId], references: [id])
 }
-
 model Appointment {
   id              String            @id @default(uuid())
   patientId       String
@@ -151,8 +150,14 @@ model Appointment {
   appointmentType AppointmentType   @default(OFFLINE)
   status          AppointmentStatus @default(PENDING)
   consultationFee Int?              @default(0)
-  notes           String?
+  notes           String?           @db.Text
   reminderSent    Boolean           @default(false)
+  
+  // Follow-up fields
+  followUpDate    DateTime?
+  followUpSent    Boolean           @default(false)
+  followUpSentAt  DateTime?
+  
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   prescriptionId  String?
@@ -170,6 +175,8 @@ model Appointment {
   @@index([patientId, date])
   @@index([prescriptionId])
   @@index([status, date])
+  @@index([followUpDate, followUpSent])
+  @@index([doctorId, date])
 }
 
 model Prescription {

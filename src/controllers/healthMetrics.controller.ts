@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError';
 import { ApiResponse } from '../utils/ApiResponse';
 import prisma from '../utils/prismClient';
-import { isValidUUID, UserInRequest } from '../utils/helper';
+import { isValidUUID } from '../utils/helper';
 import { MetricType, Role } from '@prisma/client';
 import { validateHealthMetric, calculateBMI } from '../utils/healthMetricValidation';
 import { isMetricAbnormal, getMetricStatus } from '../utils/healthMetricRanges';
@@ -34,9 +34,9 @@ async function checkPatientAccess(userId: string, userRole: Role, patientId: str
 }
 
 // POST - Create a new health metric
-export const createHealthMetric = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const createHealthMetric = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId } = req.params;
+    const { patientId } = req.params as { patientId: string };
     const { metricType, value, unit, recordedAt, notes } = req.body;
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -135,9 +135,9 @@ async function autoCalculateBMI(patientId: string): Promise<void> {
 }
 
 // GET - Get all health metrics for a patient
-export const getHealthMetrics = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const getHealthMetrics = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId } = req.params;
+    const { patientId } = req.params as { patientId: string };
     const { metricType, startDate, endDate, limit = '100', offset = '0', abnormalOnly } = req.query;
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -211,9 +211,9 @@ export const getHealthMetrics = async (req: UserInRequest, res: Response, next: 
 };
 
 // GET - Get trend analysis
-export const getMetricTrends = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const getMetricTrends = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId } = req.params;
+    const { patientId } = req.params as { patientId: string };
     const { metricTypes, period = '30d' } = req.query;
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -306,9 +306,9 @@ export const getMetricTrends = async (req: UserInRequest, res: Response, next: N
 };
 
 // GET - Get latest metrics
-export const getLatestMetrics = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const getLatestMetrics = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId } = req.params;
+    const { patientId } = req.params as { patientId: string };
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -354,9 +354,9 @@ export const getLatestMetrics = async (req: UserInRequest, res: Response, next: 
 };
 
 // GET - Get abnormal alerts
-export const getAbnormalAlerts = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const getAbnormalAlerts = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId } = req.params;
+    const { patientId } = req.params as { patientId: string };
     const { period = '7d' } = req.query;
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -414,9 +414,9 @@ export const getAbnormalAlerts = async (req: UserInRequest, res: Response, next:
 };
 
 // GET - Get specific health metric by ID
-export const getHealthMetricById = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const getHealthMetricById = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId, metricId } = req.params;
+    const { patientId, metricId } = req.params as { patientId: string; metricId: string };
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -462,9 +462,9 @@ export const getHealthMetricById = async (req: UserInRequest, res: Response, nex
 };
 
 // PUT - Update health metric
-export const updateHealthMetric = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const updateHealthMetric = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId, metricId } = req.params;
+    const { patientId, metricId } = req.params as { patientId: string; metricId: string };
     const { value, unit, recordedAt, notes } = req.body;
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -536,9 +536,9 @@ export const updateHealthMetric = async (req: UserInRequest, res: Response, next
 };
 
 // DELETE - Delete health metric
-export const deleteHealthMetric = async (req: UserInRequest, res: Response, next: NextFunction): Promise<any> => {
+export const deleteHealthMetric = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { patientId, metricId } = req.params;
+    const { patientId, metricId } = req.params as { patientId: string; metricId: string };
     const userId = req.user?.id;
     const userRole = req.user?.role;
 

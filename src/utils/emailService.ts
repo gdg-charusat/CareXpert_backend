@@ -423,3 +423,121 @@ export default {
   appointmentReminderTemplate,
   sendAppointmentReminder,
 };
+
+/**
+ * Interface for follow-up reminder email data
+ */
+export interface FollowUpEmailData {
+  patientName: string;
+  patientEmail: string;
+  doctorName: string;
+  followUpDate: Date;
+  previousAppointmentDate: Date;
+  notes?: string;
+}
+
+/**
+ * Send follow-up appointment reminder email
+ */
+export const sendFollowUpReminderEmail = async (
+  data: FollowUpEmailData
+): Promise<void> => {
+  try {
+
+    const followUpDateFormatted = new Date(data.followUpDate).toLocaleDateString(
+      "en-US",
+      {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }
+    );
+
+    const previousDateFormatted = new Date(
+      data.previousAppointmentDate
+    ).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { padding: 30px; background-color: #f9f9f9; border-radius: 0 0 10px 10px; }
+          .details { background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 4px; }
+          .button { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 4px; margin: 15px 0; font-weight: bold; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+          .notes-section { background-color: #fff3cd; padding: 15px; margin: 15px 0; border-left: 4px solid #ffc107; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">Follow-up Appointment Reminder</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${data.patientName},</p>
+            
+            <p>This is a friendly reminder about your scheduled follow-up appointment.</p>
+            
+            <div class="details">
+              <p><strong>Doctor:</strong> Dr. ${data.doctorName}</p>
+              <p><strong>Previous Appointment:</strong> ${previousDateFormatted}</p>
+              <p><strong>Recommended Follow-up Date:</strong> ${followUpDateFormatted}</p>
+            </div>
+            
+            ${
+              data.notes
+                ? `
+              <div class="notes-section">
+                <p><strong>📋 Clinical Notes:</strong></p>
+                <p>${data.notes}</p>
+              </div>
+            `
+                : ""
+            }
+            
+            <p>Please book your follow-up appointment at your earliest convenience to ensure continuity of care.</p>
+            
+            <p><strong>To schedule your appointment, you can:</strong></p>
+            <ul>
+              <li>Visit our website and book online</li>
+              <li>Call us at ${process.env.CLINIC_PHONE || "+1-234-567-8900"}</li>
+              <li>Reply to this email</li>
+            </ul>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}/appointments" class="button">
+                Book Appointment Now
+              </a>
+            </center>
+          </div>
+          <div class="footer">
+            <p>Best regards,<br><strong>CareXpert Team</strong></p>
+            <p>This is an automated reminder. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || "noreply@carexpert.com",
+      to: data.patientEmail,
+      subject: "Follow-up Appointment Reminder - CareXpert",
+      html: emailHtml,
+    });
+
+    console.log(`✓ Follow-up reminder sent successfully to ${data.patientEmail}`);
+  } catch (error) {
+    console.error("Error sending follow-up reminder email:", error);
+    throw new Error("Failed to send follow-up reminder email");
+  }
+};
