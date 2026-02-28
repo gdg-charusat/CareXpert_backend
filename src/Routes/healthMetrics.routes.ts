@@ -21,56 +21,56 @@ router.use(isAuthenticated);
 router.post(
   '/patient/:patientId/health-metrics',
   globalRateLimiter,
-  createHealthMetric as any
+  createHealthMetric
 );
 
 // GET - Get all health metrics for a patient (with filters)
 router.get(
   '/patient/:patientId/health-metrics',
   globalRateLimiter,
-  getHealthMetrics as any
+  getHealthMetrics
 );
 
 // GET - Get trend analysis for specific metrics
 router.get(
   '/patient/:patientId/health-metrics/trends',
   globalRateLimiter,
-  getMetricTrends as any
+  getMetricTrends
 );
 
 // GET - Get latest reading for each metric type
 router.get(
   '/patient/:patientId/health-metrics/latest',
   globalRateLimiter,
-  getLatestMetrics as any
+  getLatestMetrics
 );
 
 // GET - Get abnormal metrics requiring attention
 router.get(
   '/patient/:patientId/health-metrics/alerts',
   globalRateLimiter,
-  getAbnormalAlerts as any
+  getAbnormalAlerts
 );
 
 // GET - Get a specific health metric by ID
 router.get(
   '/patient/:patientId/health-metrics/:metricId',
   globalRateLimiter,
-  getHealthMetricById as any
+  getHealthMetricById
 );
 
 // PUT - Update a health metric entry
 router.put(
   '/patient/:patientId/health-metrics/:metricId',
   globalRateLimiter,
-  updateHealthMetric as any
+  updateHealthMetric
 );
 
 // DELETE - Delete a health metric entry
 router.delete(
   '/patient/:patientId/health-metrics/:metricId',
   globalRateLimiter,
-  deleteHealthMetric as any
+  deleteHealthMetric
 );
 
 export default router;

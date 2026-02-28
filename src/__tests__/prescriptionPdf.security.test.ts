@@ -9,17 +9,46 @@ import patientRoutes from "../Routes/patient.routes";
 
 process.env.ACCESS_TOKEN_SECRET = "test-secret";
 
-jest.mock("../utils/redis", () => ({
-  __esModule: true,
-  default: {
-    isReady: false,
-    get: jest.fn(),
-    set: jest.fn(),
-    incr: jest.fn(),
-    decr: jest.fn(),
-    del: jest.fn(),
-  },
-}));
+jest.mock("../utils/redis", () => {
+  const store: Record<string, { count: number; resetTime: number }> = {};
+  return {
+    __esModule: true,
+    default: {
+      isReady: false,
+      get: jest.fn(),
+      set: jest.fn(),
+      incr: jest.fn(),
+      decr: jest.fn(),
+      del: jest.fn(),
+      getRateLimitKey: (key: string) => store[key] ?? null,
+      setRateLimitKey: (key: string, count: number, ttlMs: number) => {
+        store[key] = { count, resetTime: Date.now() + ttlMs };
+      },
+      incrementRateLimitKey: (key: string, ttlMs: number) => {
+        const entry = store[key];
+        if (!entry || Date.now() > entry.resetTime) {
+          store[key] = { count: 1, resetTime: Date.now() + ttlMs };
+          return 1;
+        }
+        entry.count += 1;
+        return entry.count;
+      },
+    },
+    getRateLimitKey: (key: string) => store[key] ?? null,
+    setRateLimitKey: (key: string, count: number, ttlMs: number) => {
+      store[key] = { count, resetTime: Date.now() + ttlMs };
+    },
+    incrementRateLimitKey: (key: string, ttlMs: number) => {
+      const entry = store[key];
+      if (!entry || Date.now() > entry.resetTime) {
+        store[key] = { count: 1, resetTime: Date.now() + ttlMs };
+        return 1;
+      }
+      entry.count += 1;
+      return entry.count;
+    },
+  };
+});
 
 jest.mock("pdfkit", () => {
   return class MockPDFDocument {
@@ -144,6 +173,7 @@ function signToken(userId: string, tokenVersion = 0) {
 describe("patient prescription PDF endpoint security", () => {
   const app = express();
   app.use("/api/patient", patientRoutes);
+
 
   const prescriptionId = "11111111-1111-4111-8111-111111111111";
 

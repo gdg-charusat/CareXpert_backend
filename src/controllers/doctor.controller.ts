@@ -8,8 +8,9 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import prisma from "../utils/prismClient";
 import doc from "pdfkit";
-import { sendEmail, appointmentStatusTemplate, prescriptionTemplate } from "../utils/emailService";
+import { sendEmail, prescriptionTemplate } from "../utils/emailService";
 import { emitNotificationToUser } from "../chat/index";
+import cacheService, { CACHE_KEYS } from "../utils/cacheService";
 
 const viewDoctorAppointment = async (
   req: Request,
@@ -145,6 +146,9 @@ const updateAppointmentStatus = async (req: Request, res: Response) => {
             status: TimeSlotStatus.AVAILABLE,
           },
         });
+        // Invalidate time-slot cache so the slot appears available again
+        await cacheService.delPattern(`timeslots:${appointment.doctorId}:*`);
+        await cacheService.del(CACHE_KEYS.ALL_DOCTORS);
       }
     }
     if (status === "COMPLETED" && prescriptionText) {
@@ -259,6 +263,12 @@ const addTimeslot = async (req: Request, res: Response): Promise<any> => {
       });
     });
 
+    // Invalidate time-slot and doctor-listing caches
+    await Promise.all([
+      cacheService.delPattern(`timeslots:${doctor.id}:*`),
+      cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+    ]);
+
     return res.status(200).json(new ApiResponse(200, "Timeslot added successfully"));
   } catch (error) {
     return res.status(500).json(new ApiError(500, "Internal server error", [error]));
@@ -367,6 +377,12 @@ const generateBulkTimeSlots = async (req: Request, res: Response): Promise<any> 
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    // Invalidate time-slot and doctor-listing caches after bulk creation
+    await Promise.all([
+      cacheService.delPattern(`timeslots:${doctor.id}:*`),
+      cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+    ]);
+
     return res.status(200).json(new ApiResponse(200, {
       message: "Bulk timeslots generation completed",
       created: createdSlots.length,
@@ -416,6 +432,11 @@ const cancelAppointment = async (req: Request, res: any) => {
           status: TimeSlotStatus.AVAILABLE,
         },
       });
+      // Slot is now available again – invalidate caches
+      await Promise.all([
+        cacheService.delPattern(`timeslots:${appointment.doctorId}:*`),
+        cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+      ]);
     }
     return res
       .status(200)
@@ -536,6 +557,12 @@ const updateTimeSlot = async (req: Request, res: Response) => {
       },
     });
 
+    // Invalidate affected caches
+    await Promise.all([
+      cacheService.delPattern(`timeslots:${doctorId}:*`),
+      cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+    ]);
+
     return res
       .status(200)
       .json(new ApiResponse(200, "Time slot updated successfully!"));
@@ -578,6 +605,12 @@ const deleteTimeSlot = async (req: Request, res: Response) => {
     await prisma.timeSlot.delete({
       where: { id: timeSlotID },
     });
+
+    // Invalidate affected caches
+    await Promise.all([
+      cacheService.delPattern(`timeslots:${timeSlot.doctorId}:*`),
+      cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+    ]);
 
     return res
       .status(200)
@@ -965,17 +998,18 @@ const respondToAppointmentRequest = async (req: Request, res: Response): Promise
       }
     }
 
-    sendEmail({
-      to: appointment.patient.user.email,
-      subject: action === "accept" ? "Appointment Confirmed" : "Appointment Request Declined",
-      html: appointmentStatusTemplate(
-        doctor.user.name,
-        action === "accept" ? "CONFIRMED" : "REJECTED",
-        new Date(appointment.date).toLocaleDateString(),
-        appointment.time,
-        action === "accept" ? undefined : rejectionReason
-      ),
-    }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
+    // Email notification temporarily disabled - appointmentStatusTemplate not available
+    // sendEmail({
+    //   to: appointment.patient.user.email,
+    //   subject: action === "accept" ? "Appointment Confirmed" : "Appointment Request Declined",
+    //   html: appointmentStatusTemplate(
+    //     doctor.user.name,
+    //     action === "accept" ? "CONFIRMED" : "REJECTED",
+    //     new Date(appointment.date).toLocaleDateString(),
+    //     appointment.time,
+    //     action === "accept" ? undefined : rejectionReason
+    //   ),
+    // }).catch((err: unknown) => console.error("Failed to send appointment status email:", err));
 
     const io = req.app.get("io");
     if (io && notification?.userId) {

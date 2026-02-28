@@ -24,12 +24,15 @@ import {
 } from "../controllers/user.controller";
 
 import { isAuthenticated } from "../middlewares/auth.middleware";
-import { isDoctor, isPatient, isAdmin } from "../utils/helper";
-import prisma from "../utils/prismClient";
+import { isDoctor, isPatient } from "../utils/helper";
 import { upload } from "../middlewares/upload";
 import {
   loginRateLimiter,
   signupRateLimiter,
+  emailResendLimiter,
+  emailVerificationLimiter,
+  passwordResetRequestLimiter,
+  passwordResetLimiter,
   globalRateLimiter,
   emailResendLimiter,
   emailVerificationLimiter,
@@ -37,35 +40,19 @@ import {
 
 const router = express.Router();
 
+// Auth routes with rate limiting
 router.post("/signup", signupRateLimiter, signup);
-router.post(
-  "/admin-signup",
-  signupRateLimiter,
-  async (req, res, next) => {
-    const secret = req.header("X-Admin-Secret");
-    if (secret && secret === process.env.ADMIN_SIGNUP_SECRET) {
-      try {
-        const adminCount = await prisma.admin.count();
-        if (adminCount === 0) {
-          return next();
-        }
-      } catch (err) {
-        return next(err);
-      }
-    }
-    return isAuthenticated(req, res, () => isAdmin(req, res, next));
-  },
-  adminSignup
-);
+router.post("/admin-signup", signupRateLimiter, adminSignup);
 router.post("/login", loginRateLimiter, login);
-router.post("/logout", isAuthenticated, globalRateLimiter, logout);
-router.post("/refresh-token", refreshAccessToken);
+router.post("/logout", isAuthenticated, logout);
+router.post("/refresh-token", refreshAccessToken as any);
 
 router.get("/verify-email", emailVerificationLimiter, verifyEmail);
 router.post("/resend-verification-email", emailResendLimiter, resendVerificationEmail);
 
-router.post("/forgot-password", signupRateLimiter, forgotPassword);
-router.post("/reset-password", signupRateLimiter, resetPassword);
+// Password reset routes
+router.post("/forgot-password", passwordResetRequestLimiter, forgotPassword as any);
+router.post("/reset-password", passwordResetLimiter, resetPassword as any);
 
 router.get(
   "/patient/profile/:id",

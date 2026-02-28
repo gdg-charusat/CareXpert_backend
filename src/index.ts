@@ -7,6 +7,8 @@ import { Server } from "socket.io";
 import http from "http";
 import { setupChatSocket } from "./chat/index";
 import { notFoundHandler, errorHandler } from "./middlewares/errorHandler.middleware";
+import { initializeCronJobs } from "./utils/cronJobs";
+import { startAppointmentReminderJob } from "./utils/appointmentReminderJob";
 
 dotenv.config();
 
@@ -57,6 +59,10 @@ setupChatSocket(io).catch((err) => {
   // Server continues running even if socket setup fails
 });
 
+// Start appointment reminder job
+startAppointmentReminderJob();
+console.log("✅ Appointment reminder job started");
+
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
@@ -65,6 +71,9 @@ const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Initialize cron jobs for automated tasks
+  initializeCronJobs();
 }).on("error", (err) => {
   console.error("Server listen error:", err);
   process.exit(1);

@@ -13,7 +13,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import PDFDocument from "pdfkit";
 import fs from "fs";
-import cacheService from "../utils/cacheService";
+import cacheService, { CACHE_TTL, CACHE_KEYS } from "../utils/cacheService";
 import { validateBlockedDates } from "../utils/blockedDateService";
 
 const searchDoctors = async (req: any, res: Response, next: NextFunction): Promise<any> => {
@@ -37,7 +37,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
     return;
   }
   try {
-    const cacheKey = `doctors:${specialtyQuery || 'all'}:${locationQuery || 'all'}`;
+    const cacheKey = CACHE_KEYS.DOCTORS_SEARCH(specialtyQuery, locationQuery);
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
@@ -49,19 +49,19 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
         AND: [
           specialtyQuery
             ? {
-                specialty: {
-                  contains: specialtyQuery,
-                  mode: "insensitive",
-                },
-              }
+              specialty: {
+                contains: specialtyQuery,
+                mode: "insensitive",
+              },
+            }
             : {},
           locationQuery
             ? {
-                clinicLocation: {
-                  contains: locationQuery,
-                  mode: "insensitive",
-                },
-              }
+              clinicLocation: {
+                contains: locationQuery,
+                mode: "insensitive",
+              },
+            }
             : {},
         ],
       },
@@ -73,6 +73,8 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
         education: true,
         bio: true,
         languages: true,
+        averageRating: true,
+        totalReviews: true,
         user: {
           select: {
             name: true,
@@ -83,7 +85,7 @@ const searchDoctors = async (req: any, res: Response, next: NextFunction): Promi
       },
     });
 
-    await cacheService.set(cacheKey, doctors, 3600);
+    await cacheService.set(cacheKey, doctors, CACHE_TTL.SEARCH_DOCTORS);
     return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
     return next(error);
@@ -95,6 +97,12 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
   const date = req.query.date as string | undefined;
 
   try {
+    // ── Cache lookup ──────────────────────────────────────────────────────
+    const cacheKey = CACHE_KEYS.TIME_SLOTS(doctorId, date);
+    const cachedSlots = await cacheService.get<any[]>(cacheKey);
+    if (cachedSlots) {
+      return res.status(200).json(new ApiResponse(200, cachedSlots));
+    }
 
     if (!doctorId || !isValidUUID(doctorId)) {
       throw new AppError("Invalid Doctor ID", 400);
@@ -164,6 +172,9 @@ const availableTimeSlots = async (req: any, res: Response, next: NextFunction): 
       specialty: slot.doctor.specialty,
       location: slot.doctor.clinicLocation,
     }));
+
+    // ── Cache result ───────────────────────────────────────────────────────
+    await cacheService.set(cacheKey, formattedSlots, CACHE_TTL.TIME_SLOTS);
 
     return res.status(200).json(new ApiResponse(200, formattedSlots));
   } catch (error) {
@@ -301,6 +312,15 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
       },
     };
 
+    // ── Cache invalidation ─────────────────────────────────────────────────
+    const bookedDoctorId = result?.appointment.doctorId;
+    if (bookedDoctorId) {
+      await Promise.all([
+        cacheService.delPattern(`timeslots:${bookedDoctorId}:*`),
+        cacheService.del(CACHE_KEYS.ALL_DOCTORS),
+      ]);
+    }
+
     res.status(200).json(
       new ApiResponse(200, {
         data: formattedAppointment,
@@ -314,7 +334,28 @@ const bookAppointment = async (req: any, res: Response, next: NextFunction): Pro
 
 const fetchAllDoctors = async (req: any, res: Response) => {
   try {
-    const doctorss = await prisma.doctor.findMany({
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    // ── Cache lookup (only for non-paginated requests) ──────────────────
+    if (!hasPagination) {
+      const cachedDoctors = await cacheService.get<any[]>(CACHE_KEYS.ALL_DOCTORS);
+      if (cachedDoctors) {
+        return res.status(200).json(new ApiResponse(200, cachedDoctors));
+      }
+    }
+
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.doctor.count();
+
+    const findOptions: any = {
       include: {
         user: {
           select: {
@@ -323,7 +364,14 @@ const fetchAllDoctors = async (req: any, res: Response) => {
           },
         },
       },
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const doctorss = await prisma.doctor.findMany(findOptions);
 
     const doctors = await Promise.all(
       doctorss.map(async (doctor: any) => {
@@ -353,6 +401,15 @@ const fetchAllDoctors = async (req: any, res: Response) => {
         };
       })
     );
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, doctors, "Doctors fetched successfully", meta));
+    }
+
+    // ── Cache result (only for non-paginated requests) ──────────────────
+    await cacheService.set(CACHE_KEYS.ALL_DOCTORS, doctors, CACHE_TTL.ALL_DOCTORS);
 
     return res.status(200).json(new ApiResponse(200, doctors));
   } catch (error) {
@@ -555,7 +612,22 @@ const viewPrescriptions = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const Prescriptions = await prisma.prescription.findMany({
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.prescription.count({
+      where: { patientId },
+    });
+
+    const findOptions: any = {
       where: { patientId },
       include: {
         doctor: {
@@ -571,7 +643,14 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       orderBy: {
         dateIssued: "desc",
       },
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const Prescriptions = await prisma.prescription.findMany(findOptions);
 
     const formatted = Prescriptions.map((p: any) => ({
       id: p.id,
@@ -581,6 +660,12 @@ const viewPrescriptions = async (req: Request, res: Response) => {
       specialty: p.doctor.specialty,
       clinicLocation: p.doctor.clinicLocation,
     }));
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, formatted, "Prescriptions fetched successfully", meta));
+    }
 
     return res.status(200).json(new ApiResponse(200, formatted));
   } catch (error) {
@@ -1049,9 +1134,34 @@ const getAllPatientAppointments = async (
       return;
     }
 
-    const appointments = await prisma.appointment.findMany({
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.appointment.count({
+      where: { patientId },
+    });
+
+    const findOptions: any = {
       where: { patientId },
       include: {
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            isAnonymous: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         doctor: {
           select: {
             user: {
@@ -1066,11 +1176,20 @@ const getAllPatientAppointments = async (
             education: true,
             bio: true,
             languages: true,
+            averageRating: true,
+            totalReviews: true,
           },
         },
       },
       orderBy: [{ date: "asc" }, { time: "asc" }],
-    });
+    };
+
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const appointments = await prisma.appointment.findMany(findOptions);
 
     const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
@@ -1082,6 +1201,7 @@ const getAllPatientAppointments = async (
       consultationFee: appointment.consultationFee,
       createdAt: appointment.createdAt,
       prescriptionId: (appointment as any).prescriptionId || null,
+      review: appointment.review || null,
       doctor: {
         id: appointment.doctorId,
         name: appointment.doctor.user.name,
@@ -1092,8 +1212,16 @@ const getAllPatientAppointments = async (
         education: appointment.doctor.education,
         bio: appointment.doctor.bio,
         languages: appointment.doctor.languages,
+        averageRating: appointment.doctor.averageRating,
+        totalReviews: appointment.doctor.totalReviews,
       },
     }));
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(new ApiResponse(200, formattedAppointments, "Appointments fetched successfully", meta));
+    }
 
     return res.status(200).json(new ApiResponse(200, formattedAppointments));
   } catch (error) {

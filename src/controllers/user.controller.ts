@@ -1,30 +1,27 @@
 import { AppError } from "../utils/AppError";
-import { ApiError } from "../utils/ApiError"; // legacy – remaining secondary handlers still use this
+import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import prisma from "../utils/prismClient";
 import bcrypt from "bcrypt";
-import { Response, NextFunction } from "express";
+import { Response, NextFunction, Request } from "express";
 import jwt from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import { Prisma } from "@prisma/client";
-import { Request } from "express";
-import { hash, randomBytes } from "crypto";
-import { isValidUUID, validatePassword } from "../utils/helper";
-import { generateVerificationToken, sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmationEmail } from "../utils/emailService";
+import { randomBytes } from "crypto";
+import { isValidUUID, generateSecureToken, validatePassword } from "../utils/helper";
+import { TimeSlotStatus, AppointmentStatus } from "@prisma/client";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendPasswordResetConfirmationEmail,
+} from "../utils/emailService";
 
-const generateToken = async (userId: string) => {
+const generateToken = async (userId: string, tokenVersion: number = 0) => {
   try {
+    const accessToken = generateAccessToken(userId, tokenVersion);
+    const refreshToken = generateRefreshToken(userId, tokenVersion);
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { tokenVersion: { increment: 1 } },
-      select: { tokenVersion: true },
-    });
-
-    const accessToken = generateAccessToken(userId, user.tokenVersion);
-    const refreshToken = generateRefreshToken(userId, user.tokenVersion);
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-
     await prisma.user.update({
       where: { id: userId },
       data: { refreshToken: hashedRefreshToken },
@@ -32,7 +29,7 @@ const generateToken = async (userId: string) => {
 
     return { accessToken, refreshToken };
   } catch (err) {
-    throw new AppError("Error in generating token", 500, false);
+    throw new AppError("Error in generating token", 500);
   }
 };
 
@@ -99,10 +96,10 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
       return next(new AppError("User already exists", 409));
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = generateVerificationToken();
+    const emailVerificationToken = generateSecureToken();
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           name: name.toLowerCase(),
@@ -110,8 +107,9 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
           password: hashedPassword,
           role,
           isEmailVerified: false,
-          emailVerificationToken: verificationToken,
-          tokenExpiresAt: tokenExpiresAt,
+          emailVerificationToken,
+          tokenExpiresAt,
+          lastVerificationEmailSent: new Date(),
           profilePicture:
             "https://res.cloudinary.com/de930by1y/image/upload/v1747403920/careXpert_profile_pictures/kxwsom57lcjamzpfjdod.jpg",
         },
@@ -179,102 +177,17 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
       return user;
     });
 
+    // Send verification email (async, don't block signup)
     try {
-      await sendVerificationEmail(result.email, result.name, verificationToken);
+      await sendVerificationEmail(email, name, emailVerificationToken);
     } catch (emailError) {
       console.error("Failed to send verification email:", emailError);
-
-    }
-
-    return res
-      .status(201)
-      .json(new ApiResponse(
-        201,
-        {
-          user: {
-            id: result.id,
-            email: result.email,
-            name: result.name,
-            isEmailVerified: result.isEmailVerified
-          }
-        },
-        "Signup successful! Please verify your email address."
-      ));
-  } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json(new ApiError(500, "Internal server error", [err]));
-  }
-};
-
-const verifyEmail = async (req: Request, res: any) => {
-  try {
-    const { token, email } = req.query;
-
-    if (!token || !email) {
-      return res
-        .status(400)
-        .json(new ApiError(400, "Verification token and email are required"));
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: String(email) },
-    });
-
-    if (!user) {
-      return res
-        .status(404)
-        .json(new ApiError(404, "User not found"));
-    }
-
-    if (user.isEmailVerified) {
-      return res
-        .status(200)
-        .json(new ApiResponse(200, {}, "Email is already verified"));
-    }
-
-    if (user.emailVerificationToken !== String(token)) {
-      return res
-        .status(400)
-        .json(new ApiError(400, "Invalid verification token"));
-    }
-
-    if (user.tokenExpiresAt && new Date() > user.tokenExpiresAt) {
-      return res
-        .status(400)
-        .json(new ApiError(400, "Verification token has expired"));
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        isEmailVerified: true,
-        emailVerificationToken: null,
-        tokenExpiresAt: null,
-      },
-    });
-
-    try {
-      await sendWelcomeEmail(updatedUser.email, updatedUser.name);
-    } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
+      // Don't fail signup if email fails
     }
 
     return res
       .status(200)
-      .json(new ApiResponse(
-        200,
-        {
-          user: {
-            id: updatedUser.id,
-            email: updatedUser.email,
-            name: updatedUser.name,
-            isEmailVerified: updatedUser.isEmailVerified
-          }
-        },
-        "Email verified successfully! Your account is now active."
-      ));
+      .json(new ApiResponse(200, { user: result }, "Signup successful. Please check your email to verify your account."));
   } catch (err) {
     console.error(err);
     return res
@@ -283,15 +196,6 @@ const verifyEmail = async (req: Request, res: any) => {
   }
 };
 
-const resendVerificationEmail = async (req: Request, res: any, next: NextFunction) => {
-  try {
-    const { email } = req.body;
-
-    if (!email || email.trim() === "") {
-      return res
-        .status(400)
-        .json(new ApiError(400, "Email is required"));
-    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -567,97 +471,7 @@ const logout = async (req: any, res: any, next: NextFunction) => {
   }
 };
 
-const refreshAccessToken = async (req: any, res: any) => {
-  try {
-    const incomingRefreshToken =
-      req.cookies?.refreshToken || req.body?.refreshToken;
 
-    if (!incomingRefreshToken) {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Refresh token is required"));
-    }
-
-    let decoded: any;
-    try {
-      decoded = jwt.verify(
-        incomingRefreshToken,
-        process.env.REFRESH_TOKEN_SECRET as string
-      );
-    } catch {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Invalid or expired refresh token"));
-    }
-
-    if (
-      typeof decoded !== "object" ||
-      !decoded.userId ||
-      typeof decoded.userId !== "string" ||
-      typeof decoded.tokenVersion !== "number"
-    ) {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Invalid token payload"));
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, refreshToken: true, tokenVersion: true },
-    });
-
-    if (!user) {
-      return res.status(401).json(new ApiError(401, "User not found"));
-    }
-
-    if (!user.refreshToken) {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Refresh token has been revoked"));
-    }
-
-    const isRefreshTokenValid = await bcrypt.compare(
-      incomingRefreshToken,
-      user.refreshToken
-    );
-
-    if (!isRefreshTokenValid) {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Refresh token has been revoked"));
-    }
-
-    if (decoded.tokenVersion !== user.tokenVersion) {
-      return res
-        .status(401)
-        .json(new ApiError(401, "Token version mismatch, please login again"));
-    }
-
-    const { accessToken, refreshToken } = await generateToken(user.id);
-
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-    };
-
-    return res
-      .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", refreshToken, options)
-      .json(
-        new ApiResponse(
-          200,
-          { accessToken, refreshToken },
-          "Token refreshed successfully"
-        )
-      );
-  } catch (err) {
-    return res
-      .status(500)
-      .json(new ApiError(500, "Internal server error", [err]));
-  }
-};
 
 const doctorProfile = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -886,33 +700,43 @@ const getAuthenticatedUserProfile = async (
 const getNotifications = async (req: any, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
-    const { page = 1, limit = 10 } = req.query;
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
 
-    const notifications = await prisma.notification.findMany({
+    let page = parseInt(req.query.page as string);
+    let limit = parseInt(req.query.limit as string);
+
+    if (hasPagination) {
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 100) limit = 100;
+    }
+
+    const totalCount = await prisma.notification.count({
+      where: { userId },
+    });
+
+    const findOptions: any = {
       where: { userId },
       orderBy: { createdAt: "desc" },
-      skip: (Number(page) - 1) * Number(limit),
-      take: Number(limit),
-    });
+    };
 
-    const total = await prisma.notification.count({
-      where: { userId },
-    });
+    if (hasPagination) {
+      findOptions.skip = (page - 1) * limit;
+      findOptions.take = limit;
+    }
+
+    const notifications = await prisma.notification.findMany(findOptions);
+
+    if (hasPagination) {
+      const totalPages = Math.ceil(totalCount / limit);
+      const meta = { totalCount, page, limit, totalPages };
+      return res.status(200).json(
+        new ApiResponse(200, { notifications }, "Notifications fetched successfully", meta)
+      );
+    }
 
     return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          notifications,
-          pagination: {
-            page: Number(page),
-            limit: Number(limit),
-            total,
-            pages: Math.ceil(total / Number(limit)),
-          },
-        },
-        "Notifications fetched successfully",
-      ),
+      new ApiResponse(200, { notifications }, "Notifications fetched successfully")
     );
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -1138,112 +962,182 @@ const leaveCommunity = async (req: any, res: Response): Promise<any> => {
   }
 };
 
-const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
-  const { email } = req.body;
 
-  if (!email || email.trim() === "") {
-    return next(new AppError("Email is required", 400));
-  }
 
+// ============================================
+// EMAIL VERIFICATION & PASSWORD RESET
+// ============================================
+
+/**
+ * Verify email with token
+ */
+const verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    // Always return same response to prevent email enumeration
-    const genericResponse = "If an account exists with this email, a password reset link has been sent.";
+    const { token } = req.query;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim() },
-    });
-
-    // If user doesn't exist, still return success to prevent email enumeration
-    if (!user) {
-      res.status(200).json(new ApiResponse(200, genericResponse));
-      return;
+    if (!token || typeof token !== "string") {
+      return next(new AppError("Verification token is required", 400));
     }
 
-    // Generate secure reset token (32 bytes = 64 hex characters)
-    const resetToken = randomBytes(32).toString("hex");
-    
-    // Hash the token before storing
-    const hashedToken = await bcrypt.hash(resetToken, 10);
-    
-    // Set expiration time (30 minutes from now)
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-    // Update user with reset token and expiry
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordResetToken: hashedToken,
-        passwordResetExpiry: expiresAt,
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationToken: token,
+        tokenExpiresAt: { gt: new Date() },
       },
     });
 
-    // Send reset email with plain token (not hashed)
-    try {
-      await sendPasswordResetEmail(user.email, user.name, resetToken);
-      console.log(`✓ Password reset email sent to ${user.email}`);
-    } catch (emailError) {
-      console.error("Failed to send password reset email:", emailError);
-      // Still return success to prevent email enumeration
-      // But the email won't be sent - admin should check logs
+    if (!user) {
+      return next(new AppError("Invalid or expired verification token", 400));
     }
 
-    res.status(200).json(new ApiResponse(200, genericResponse));
-    return;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+        tokenExpiresAt: null,
+      },
+    });
+
+    res.status(200).json(new ApiResponse(200, null, "Email verified successfully"));
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    return next(new AppError("Failed to verify email", 500));
+  }
+};
+
+const resendVerificationEmail = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return next(new AppError("Email is required", 400));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
+
+    if (!user) {
+      // Don't reveal if user exists
+      res.status(200).json(new ApiResponse(200, null, "If an account exists, a verification email has been sent"));
+      return;
+    }
+
+    if (user.isEmailVerified) {
+      return next(new AppError("Email is already verified", 400));
+    }
+
+    // Check rate limit for resend (1 minute cooldown)
+    if (user.lastVerificationEmailSent) {
+      const timeSinceLastEmail = Date.now() - user.lastVerificationEmailSent.getTime();
+      if (timeSinceLastEmail < 60000) { // 1 minute
+        return next(new AppError("Please wait before requesting another verification email", 429));
+      }
+    }
+
+    // Generate new token
+    const emailVerificationToken = generateSecureToken();
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken,
+        tokenExpiresAt,
+        lastVerificationEmailSent: new Date(),
+      },
+    });
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, emailVerificationToken);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      return next(new AppError("Failed to send verification email", 500));
+    }
+
+    res.status(200).json(new ApiResponse(200, null, "Verification email sent successfully"));
+  } catch (error) {
+    console.error("Error resending verification email:", error);
+    return next(new AppError("Failed to resend verification email", 500));
+  }
+};
+
+const forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return next(new AppError("Email is required", 400));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      res.status(200).json(new ApiResponse(200, null, "If an account exists with this email, a password reset link has been sent"));
+      return;
+    }
+
+    // Generate password reset token
+    const passwordResetToken = generateSecureToken();
+    const passwordResetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken,
+        passwordResetExpiry,
+      },
+    });
+
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(user.email, user.name, passwordResetToken);
+    } catch (emailError) {
+      console.error("Failed to send password reset email:", emailError);
+      return next(new AppError("Failed to send password reset email", 500));
+    }
+
+    res.status(200).json(new ApiResponse(200, null, "If an account exists with this email, a password reset link has been sent"));
   } catch (error) {
     console.error("Error in forgot password:", error);
     return next(new AppError("Failed to process password reset request", 500));
   }
 };
 
-const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || token.trim() === "") {
-    return next(new AppError("Reset token is required", 400));
-  }
-
-  if (!newPassword || newPassword.trim() === "") {
-    return next(new AppError("New password is required", 400));
-  }
-
-  // Validate password strength
-  const passwordValidation = validatePassword(newPassword);
-  if (!passwordValidation.isValid) {
-    return next(new AppError(passwordValidation.message || "Invalid password", 400));
-  }
-
+const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    // Find users with non-expired reset tokens
-    const users = await prisma.user.findMany({
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return next(new AppError("Token and new password are required", 400));
+    }
+
+    if (newPassword.length < 8) {
+      return next(new AppError("Password must be at least 8 characters long", 400));
+    }
+
+    const user = await prisma.user.findFirst({
       where: {
-        passwordResetToken: { not: null },
-        passwordResetExpiry: { gte: new Date() },
+        passwordResetToken: token,
+        passwordResetExpiry: { gt: new Date() },
       },
     });
 
-    // Find the user whose hashed token matches the provided token
-    let matchedUser = null;
-    for (const user of users) {
-      if (user.passwordResetToken) {
-        const isMatch = await bcrypt.compare(token, user.passwordResetToken);
-        if (isMatch) {
-          matchedUser = user;
-          break;
-        }
-      }
+    if (!user) {
+      return next(new AppError("Invalid or expired password reset token", 400));
     }
 
-    if (!matchedUser) {
-      return next(new AppError("Invalid or expired reset token", 400));
-    }
-
-    // Hash the new password
+    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user: set new password, clear reset token, increment tokenVersion
     await prisma.user.update({
-      where: { id: matchedUser.id },
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         passwordResetToken: null,
@@ -1254,16 +1148,58 @@ const resetPassword = async (req: Request, res: Response, next: NextFunction) =>
 
     // Send confirmation email
     try {
-      await sendPasswordResetConfirmationEmail(matchedUser.email, matchedUser.name);
+      await sendPasswordResetConfirmationEmail(user.email, user.name);
     } catch (emailError) {
       console.error("Failed to send password reset confirmation email:", emailError);
     }
 
-    res.status(200).json(new ApiResponse(200, "Password reset successful"));
-    return;
+    res.status(200).json(new ApiResponse(200, null, "Password reset successful"));
   } catch (error) {
     console.error("Error in reset password:", error);
     return next(new AppError("Failed to reset password", 500));
+  }
+};
+
+const refreshAccessToken = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return next(new AppError("Refresh token is required", 400));
+    }
+
+    // Verify refresh token
+    let decoded: any;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET as string);
+    } catch (err) {
+      return next(new AppError("Invalid or expired refresh token", 401));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    // Check if refresh token matches and tokenVersion is valid
+    if (user.refreshToken !== refreshToken) {
+      return next(new AppError("Invalid refresh token", 401));
+    }
+
+    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+      return next(new AppError("Token has been invalidated", 401));
+    }
+
+    // Generate new tokens
+    const tokens = await generateToken(user.id, user.tokenVersion);
+
+    res.status(200).json(new ApiResponse(200, tokens, "Token refreshed successfully"));
+  } catch (error) {
+    console.error("Error refreshing token:", error);
+    return next(new AppError("Failed to refresh token", 500));
   }
 };
 
