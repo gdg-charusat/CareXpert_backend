@@ -1,6 +1,6 @@
 import cron, { ScheduledTask } from "node-cron";
 import prisma from "./prismClient";
-import { sendEmail } from "./emailService";
+import { sendAppointmentReminder, patientAppointmentReminderTemplate, doctorAppointmentReminderTemplate } from "./emailService";
 
 const getEffectiveAppointmentDateTime = (
   appointmentDate: Date,
@@ -147,14 +147,20 @@ export const startAppointmentReminderJob = () => {
             continue;
           }
 
-          // Send emails (already marked as sent, so failure won't cause duplicates)
-          // TODO: Implement sendAppointmentReminder or use sendEmail with proper template
-          console.log(`Reminder would be sent to ${patientEmail} and ${doctorEmail}`);
-          // await sendEmail({
-          //   to: patientEmail,
-          //   subject: "Appointment Reminder",
-          //   html: `Your appointment with Dr. ${doctorName} is on ${appointmentDate} at ${appointmentTime}`
-          // });
+          // Determine appointment mode (appointmentType: ONLINE or OFFLINE maps to IN_PERSON)
+          const mode = appointment.appointmentType === "ONLINE" ? "ONLINE" : "IN_PERSON";
+
+          // Send reminder emails to both patient and doctor in a single call
+          await sendAppointmentReminder(
+            patientEmail,
+            patientName,
+            doctorEmail,
+            doctorName,
+            appointmentDate,
+            appointmentTime,
+            clinicLocation,
+            mode as "ONLINE" | "IN_PERSON"
+          );
 
           sentCount++;
           console.log(

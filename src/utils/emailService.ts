@@ -228,10 +228,198 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (char) => map[char]);
 }
 
+/**
+ * Patient appointment reminder email template
+ */
+export const patientAppointmentReminderTemplate = (
+  patientName: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string | null,
+  mode: "ONLINE" | "IN_PERSON"
+): string => {
+  const escapedPatientName = escapeHtml(patientName);
+  const escapedDoctorName = escapeHtml(doctorName);
+  const escapedDate = escapeHtml(appointmentDate);
+  const escapedTime = escapeHtml(appointmentTime);
+  const escapedLocation = clinicLocation ? escapeHtml(clinicLocation) : "Online";
+  const appointmentType = mode === "ONLINE" ? "Video Call" : "In-Person";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .details { background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📅 Appointment Reminder</h1>
+        </div>
+        <div class="content">
+          <p>Hi ${escapedPatientName},</p>
+          <p>This is a reminder about your upcoming appointment with <strong>Dr. ${escapedDoctorName}</strong>.</p>
+          <div class="details">
+            <p><strong>📆 Date:</strong> ${escapedDate}</p>
+            <p><strong>⏰ Time:</strong> ${escapedTime}</p>
+            <p><strong>📍 Location:</strong> ${escapedLocation}</p>
+            <p><strong>🏥 Type:</strong> ${appointmentType}</p>
+          </div>
+          <p>Please arrive 10 minutes early for your appointment. If you need to reschedule or cancel, please do so at least 24 hours in advance.</p>
+        </div>
+        <div class="footer">
+          <p>This is an automated message from CareXpert. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+/**
+ * Doctor appointment reminder email template
+ */
+export const doctorAppointmentReminderTemplate = (
+  doctorName: string,
+  patientName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string | null,
+  mode: "ONLINE" | "IN_PERSON"
+): string => {
+  const escapedDoctorName = escapeHtml(doctorName);
+  const escapedPatientName = escapeHtml(patientName);
+  const escapedDate = escapeHtml(appointmentDate);
+  const escapedTime = escapeHtml(appointmentTime);
+  const escapedLocation = clinicLocation ? escapeHtml(clinicLocation) : "Online";
+  const appointmentType = mode === "ONLINE" ? "Video Call" : "In-Person";
+  const visitType = mode === "ONLINE" ? "video consultation" : "in-person visit";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .details { background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📅 Upcoming Appointment</h1>
+        </div>
+        <div class="content">
+          <p>Hi Dr. ${escapedDoctorName},</p>
+          <p>This is a reminder about your upcoming appointment with <strong>${escapedPatientName}</strong>.</p>
+          <div class="details">
+            <p><strong>👤 Patient:</strong> ${escapedPatientName}</p>
+            <p><strong>📆 Date:</strong> ${escapedDate}</p>
+            <p><strong>⏰ Time:</strong> ${escapedTime}</p>
+            <p><strong>📍 Location:</strong> ${escapedLocation}</p>
+            <p><strong>🏥 Type:</strong> ${appointmentType}</p>
+          </div>
+          <p>Please ensure you're prepared for this ${visitType}.</p>
+        </div>
+        <div class="footer">
+          <p>This is an automated message from CareXpert. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+/**
+ * Generic appointment reminder template (deprecated - use patientAppointmentReminderTemplate or doctorAppointmentReminderTemplate)
+ * Kept for backward compatibility
+ */
+export const appointmentReminderTemplate = (
+  recipientName: string,
+  patientName: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string | null,
+  mode: "ONLINE" | "IN_PERSON"
+): string => {
+  // Delegate to patient template for backward compatibility
+  return patientAppointmentReminderTemplate(
+    recipientName,
+    doctorName,
+    appointmentDate,
+    appointmentTime,
+    clinicLocation,
+    mode
+  );
+};
+
+/**
+ * Send appointment reminder emails to both patient and doctor
+ */
+export const sendAppointmentReminder = async (
+  patientEmail: string,
+  patientName: string,
+  doctorEmail: string,
+  doctorName: string,
+  appointmentDate: string,
+  appointmentTime: string,
+  clinicLocation: string | null,
+  mode: "ONLINE" | "IN_PERSON"
+): Promise<void> => {
+  // Send reminder to patient
+  const patientHtml = patientAppointmentReminderTemplate(
+    patientName,
+    doctorName,
+    appointmentDate,
+    appointmentTime,
+    clinicLocation,
+    mode
+  );
+
+  await sendEmail({
+    to: patientEmail,
+    subject: "Appointment Reminder - CareXpert",
+    html: patientHtml,
+  });
+
+  // Send reminder to doctor
+  const doctorHtml = doctorAppointmentReminderTemplate(
+    doctorName,
+    patientName,
+    appointmentDate,
+    appointmentTime,
+    clinicLocation,
+    mode
+  );
+
+  await sendEmail({
+    to: doctorEmail,
+    subject: "Upcoming Appointment - CareXpert",
+    html: doctorHtml,
+  });
+};
+
 export default {
   sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordResetConfirmationEmail,
   prescriptionTemplate,
+  patientAppointmentReminderTemplate,
+  doctorAppointmentReminderTemplate,
+  appointmentReminderTemplate,
+  sendAppointmentReminder,
 };

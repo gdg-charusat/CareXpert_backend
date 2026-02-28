@@ -11,34 +11,51 @@ function handlePrismaError(err: Prisma.PrismaClientKnownRequestError): AppError 
   switch (err.code) {
     case "P2002": {
       const fields = (err.meta?.target as string[]) ?? ["field"];
-      return new AppError(
+      const appErr = new AppError(
         `A record with this ${fields.join(", ")} already exists.`,
         409,
-        "P2002"
+        true
       );
+      appErr.code = "P2002";
+      return appErr;
     }
-    case "P2025":
-      return new AppError("The requested record was not found.", 404, "P2025");
+    case "P2025": {
+      const appErr = new AppError("The requested record was not found.", 404, true);
+      appErr.code = "P2025";
+      return appErr;
+    }
 
-    case "P2003":
-      return new AppError(
+    case "P2003": {
+      const appErr = new AppError(
         "Related record not found. Check the referenced ID.",
         400,
-        "P2003"
+        true
       );
+      appErr.code = "P2003";
+      return appErr;
+    }
 
-    case "P2014":
-      return new AppError("Required relation is missing.", 400, "P2014");
+    case "P2014": {
+      const appErr = new AppError("Required relation is missing.", 400, true);
+      appErr.code = "P2014";
+      return appErr;
+    }
 
-    case "P2016":
-      return new AppError("Query interpretation error.", 400, "P2016");
+    case "P2016": {
+      const appErr = new AppError("Query interpretation error.", 400, true);
+      appErr.code = "P2016";
+      return appErr;
+    }
 
-    default:
-      return new AppError(
+    default: {
+      const appErr = new AppError(
         IS_PROD ? "Database error." : `Prisma error ${err.code}: ${err.message}`,
         500,
-        err.code
+        false
       );
+      appErr.code = err.code;
+      return appErr;
+    }
   }
 }
 
@@ -73,7 +90,7 @@ export const errorHandler = (
     appError = err;
 
   } else if (err instanceof ApiError) {
-    appError = new AppError(err.message, err.statusCode, undefined, err.errors ?? []);
+    appError = new AppError(err.message, err.statusCode, true, err.errors ?? []);
 
   } else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     appError = handlePrismaError(err);
