@@ -1,8 +1,11 @@
 import nodemailer from "nodemailer";
+import { randomBytes } from "crypto";
 
-/**
- * Email Service for sending verification and notification emails
- */
+export const generateVerificationToken = (): string => {
+  // Use 32 bytes for 256-bit entropy (base64url = 43 characters)
+  // This provides cryptographically strong protection against brute-force attacks
+  return randomBytes(32).toString("base64url");
+};
 
 // Create transporter
 const transporter = nodemailer.createTransport({

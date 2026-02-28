@@ -196,8 +196,6 @@ const signup = async (req: Request, res: any, next: NextFunction) => {
   }
 };
 
-
-
 const adminSignup = async (req: Request, res: any, next: NextFunction) => {
   const { firstName, lastName, email, password } = req.body;
 

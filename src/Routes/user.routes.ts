@@ -45,9 +45,8 @@ router.post("/login", loginRateLimiter, login);
 router.post("/logout", isAuthenticated, logout);
 router.post("/refresh-token", refreshAccessToken as any);
 
-// Email verification routes
-router.get("/verify-email", emailVerificationLimiter, verifyEmail as any);
-router.post("/resend-verification", emailResendLimiter, resendVerificationEmail as any);
+router.get("/verify-email", emailVerificationLimiter, verifyEmail);
+router.post("/resend-verification-email", emailResendLimiter, resendVerificationEmail);
 
 // Password reset routes
 router.post("/forgot-password", passwordResetRequestLimiter, forgotPassword as any);
