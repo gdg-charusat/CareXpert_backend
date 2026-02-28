@@ -94,7 +94,7 @@ export const loginRateLimiter = rateLimit({
 
 export const authenticatedRateLimiter = rateLimit({
   windowMs: 60000,
-  max: parseInt(process.env.AUTHENTICATED_RATE_LIMIT || '100'),
+  max: parseInt(process.env.AUTHENTICATED_RATE_LIMIT || '10000'),
   message: { success: false, message: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,

@@ -10,6 +10,7 @@ import analyticsRoutes from "./analytics.routes";
 import adminRoutes from "./admin.routes";
 import symptomRoutes from "./symptom.routes";
 import healthMetricsRoutes from "./healthMetrics.routes";
+import reviewRoutes from "./review.routes";
 
 const router = express.Router();
 
@@ -23,5 +24,6 @@ router.use("/analytics", analyticsRoutes);
 router.use("/admin", adminRoutes);
 router.use("/symptom", symptomRoutes);
 router.use("/", healthMetricsRoutes);
+router.use("/review", reviewRoutes);
 
 export default router;
