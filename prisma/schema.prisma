@@ -48,6 +48,20 @@ model User {
   refreshToken   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+  
+  // Email verification fields
+  isEmailVerified           Boolean   @default(false)
+  emailVerificationToken    String?
+  tokenExpiresAt            DateTime?
+  lastVerificationEmailSent DateTime?
+  
+  // Password reset fields
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
+  
+  // Token versioning for session management
+  tokenVersion Int @default(0)
 
   // Role-specific relations
   patient          Patient?       @relation("PatientUser")

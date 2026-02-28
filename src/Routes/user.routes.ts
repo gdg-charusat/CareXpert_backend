@@ -16,17 +16,40 @@ import {
   getCommunityMembers,
   joinCommunity,
   leaveCommunity,
+  verifyEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
+  refreshAccessToken,
 } from "../controllers/user.controller";
 import { isAuthenticated } from "../middlewares/auth.middleware";
 import { isDoctor, isPatient } from "../utils/helper";
-import {upload} from "../middlewares/upload";
+import { upload } from "../middlewares/upload";
+import {
+  loginRateLimiter,
+  signupRateLimiter,
+  emailResendLimiter,
+  emailVerificationLimiter,
+  passwordResetRequestLimiter,
+  passwordResetLimiter,
+} from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/admin-signup", adminSignup);
-router.post("/login", login);
+// Auth routes with rate limiting
+router.post("/signup", signupRateLimiter, signup);
+router.post("/admin-signup", signupRateLimiter, adminSignup);
+router.post("/login", loginRateLimiter, login);
 router.post("/logout", isAuthenticated, logout);
+router.post("/refresh-token", refreshAccessToken as any);
+
+// Email verification routes
+router.get("/verify-email", emailVerificationLimiter, verifyEmail as any);
+router.post("/resend-verification", emailResendLimiter, resendVerificationEmail as any);
+
+// Password reset routes
+router.post("/forgot-password", passwordResetRequestLimiter, forgotPassword as any);
+router.post("/reset-password", passwordResetLimiter, resetPassword as any);
 
 router.get("/patient/profile/:id", isAuthenticated, userProfile);
 router.get("/doctor/profile/:id", isAuthenticated, doctorProfile);

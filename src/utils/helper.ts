@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Role } from "@prisma/client";
 import { ApiError } from "./ApiError";
 import { PrismaClient, User } from "@prisma/client";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -366,4 +367,12 @@ export const formatMedicalReport = (data: {
   }
 
   return report.join("\n");
+};
+
+/**
+ * Generate a cryptographically secure token (256-bit)
+ * Used for email verification and password reset tokens
+ */
+export const generateSecureToken = (): string => {
+  return crypto.randomBytes(32).toString("hex");
 };
