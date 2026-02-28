@@ -3,7 +3,6 @@ import { Role } from "@prisma/client";
 import { ApiError } from "./ApiError";
 import { PrismaClient, User } from "@prisma/client";
 import crypto from "crypto";
-import { User } from "@prisma/client";
 import prisma from "./prismClient";
 
 export interface UserInRequest {
@@ -126,6 +125,10 @@ export const generateRandomPassword = (length: number = 12): string => {
     .split("")
     .sort(() => Math.random() - 0.5)
     .join("");
+};
+
+export const generateSecureToken = (): string => {
+  return crypto.randomBytes(32).toString("hex");
 };
 
 export const generateToken = (): string => {
