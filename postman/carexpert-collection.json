@@ -1,0 +1,3028 @@
+{
+  "info": {
+    "name": "CareXpert Backend API",
+    "description": "Complete API collection for CareXpert healthcare platform including user management, doctor/patient portals, appointments, AI chat, and more.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "carexpert-backend-api",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Smith\",\n  \"data\": \"john.smith@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"PATIENT\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "signup"
+              ]
+            },
+            "description": "Register a new user account"
+          }
+        },
+        {
+          "name": "Admin Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"data\": \"admin@carexpert.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/admin-signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "admin-signup"
+              ]
+            },
+            "description": "Register a new admin account"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"john.smith@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "login"
+              ]
+            },
+            "description": "Login with email and password"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "logout"
+              ]
+            },
+            "description": "Logout user and invalidate session"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user/refresh-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "refresh-token"
+              ]
+            },
+            "description": "Get a new access token using refresh token"
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user/verify-email?token=EMAIL_VERIFICATION_TOKEN",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "verify-email"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "EMAIL_VERIFICATION_TOKEN"
+                }
+              ]
+            },
+            "description": "Verify user email using token"
+          }
+        },
+        {
+          "name": "Resend Verification Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"john.smith@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/resend-verification-email",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "resend-verification-email"
+              ]
+            },
+            "description": "Resend email verification token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get Authenticated User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/authenticated-profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "authenticated-profile"
+              ]
+            },
+            "description": "Get current user's profile information"
+          }
+        },
+        {
+          "name": "Get Patient Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/patient/profile/:patientId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "patient",
+                "profile",
+                ":patientId"
+              ]
+            },
+            "description": "Get patient profile by ID"
+          }
+        },
+        {
+          "name": "Get Doctor Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/doctor/profile/:doctorId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "doctor",
+                "profile",
+                ":doctorId"
+              ]
+            },
+            "description": "Get doctor profile by ID"
+          }
+        },
+        {
+          "name": "Update Patient Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "John Smith",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "New York, NY",
+                  "type": "text"
+                },
+                {
+                  "key": "medicalHistory",
+                  "value": "Hypertension, managed with medication",
+                  "type": "text"
+                },
+                {
+                  "key": "profilePicture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/update-patient",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "update-patient"
+              ]
+            },
+            "description": "Update patient profile information"
+          }
+        },
+        {
+          "name": "Update Doctor Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Dr. Sarah Johnson",
+                  "type": "text"
+                },
+                {
+                  "key": "specialty",
+                  "value": "Cardiology",
+                  "type": "text"
+                },
+                {
+                  "key": "clinicLocation",
+                  "value": "123 Medical Center, New York, NY",
+                  "type": "text"
+                },
+                {
+                  "key": "experience",
+                  "value": "12 years",
+                  "type": "text"
+                },
+                {
+                  "key": "education",
+                  "value": "MD from Harvard Medical School",
+                  "type": "text"
+                },
+                {
+                  "key": "bio",
+                  "value": "Experienced cardiologist with a focus on preventive care",
+                  "type": "text"
+                },
+                {
+                  "key": "languages",
+                  "value": "[\"English\", \"Spanish\"]",
+                  "type": "text"
+                },
+                {
+                  "key": "profilePicture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user/update-doctor",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "update-doctor"
+              ]
+            },
+            "description": "Update doctor profile information"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctor Endpoints",
+      "item": [
+        {
+          "name": "Add Time Slot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"2025-02-28T10:00:00Z\",\n  \"endTime\": \"2025-02-28T11:00:00Z\",\n  \"consultationFee\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/add-timeslot",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "add-timeslot"
+              ]
+            },
+            "description": "Create a new time slot for doctor availability"
+          }
+        },
+        {
+          "name": "Generate Bulk Time Slots",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2025-03-01\",\n  \"endDate\": \"2025-03-31\",\n  \"slotDuration\": 30,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\",\n  \"consultationFee\": 100,\n  \"daysOfWeek\": [1, 2, 3, 4, 5]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/timeslots/bulk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "timeslots",
+                "bulk"
+              ]
+            },
+            "description": "Generate multiple time slots in bulk"
+          }
+        },
+        {
+          "name": "View Time Slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/view-timeslots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "view-timeslots"
+              ]
+            },
+            "description": "Get all time slots for logged-in doctor"
+          }
+        },
+        {
+          "name": "Update Time Slot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"2025-02-28T11:00:00Z\",\n  \"endTime\": \"2025-02-28T12:00:00Z\",\n  \"consultationFee\": 120\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/update-timeSlot/:timeSlotId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "update-timeSlot",
+                ":timeSlotId"
+              ]
+            },
+            "description": "Update a specific time slot"
+          }
+        },
+        {
+          "name": "Delete Time Slot",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/delete-timeSlot/:timeSlotId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "delete-timeSlot",
+                ":timeSlotId"
+              ]
+            },
+            "description": "Delete a time slot"
+          }
+        },
+        {
+          "name": "View Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "appointments"
+              ]
+            },
+            "description": "Get doctor's appointments"
+          }
+        },
+        {
+          "name": "Get All Doctor Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/all-appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "all-appointments"
+              ]
+            },
+            "description": "Get all appointments for doctor with detailed info"
+          }
+        },
+        {
+          "name": "Update Appointment Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/appointments/:appointmentId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "appointments",
+                ":appointmentId"
+              ]
+            },
+            "description": "Update appointment status (CONFIRMED, COMPLETED, REJECTED)"
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/cancel-appointment/:appointmentId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "cancel-appointment",
+                ":appointmentId"
+              ]
+            },
+            "description": "Cancel an appointment"
+          }
+        },
+        {
+          "name": "Get Patient History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/patient-history/:patientId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "patient-history",
+                ":patientId"
+              ]
+            },
+            "description": "Get medical history of a patient"
+          }
+        },
+        {
+          "name": "Add Prescription to Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": \"appointment-id-here\",\n  \"prescriptionText\": \"Aspirin 100mg daily, Follow-up in 4 weeks\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/add-prescription",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "add-prescription"
+              ]
+            },
+            "description": "Add or update prescription for an appointment"
+          }
+        },
+        {
+          "name": "Mark Appointment as Completed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Patient condition improving\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/mark-completed/:appointmentId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "mark-completed",
+                ":appointmentId"
+              ]
+            },
+            "description": "Mark appointment as completed"
+          }
+        },
+        {
+          "name": "Get Pending Appointment Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/pending-requests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "pending-requests"
+              ]
+            },
+            "description": "Get pending appointment requests from patients"
+          }
+        },
+        {
+          "name": "Respond to Appointment Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/respond-request/:appointmentId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "respond-request",
+                ":appointmentId"
+              ]
+            },
+            "description": "Respond to appointment request (CONFIRMED or REJECTED)"
+          }
+        },
+        {
+          "name": "Get City Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/city-rooms",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "city-rooms"
+              ]
+            },
+            "description": "Get city-based chat rooms for doctors"
+          }
+        },
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New York Doctors Network\",\n  \"city\": \"New York\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/create-room",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "create-room"
+              ]
+            },
+            "description": "Create a new chat room"
+          }
+        },
+        {
+          "name": "Get Doctor Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "notifications"
+              ]
+            },
+            "description": "Get doctor notifications"
+          }
+        },
+        {
+          "name": "Mark Doctor Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/notifications/:notificationId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "notifications",
+                ":notificationId"
+              ]
+            },
+            "description": "Mark notification as read"
+          }
+        },
+        {
+          "name": "Create Prescription Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Type 2 Diabetes Management\",\n  \"description\": \"Standard prescription for newly diagnosed Type 2 diabetes patients\",\n  \"prescriptionText\": \"1. Metformin 500mg - Take 1 tablet twice daily with meals\\n2. Regular blood glucose monitoring\\n3. Follow up in 2 weeks\",\n  \"tags\": [\"diabetes\", \"chronic-care\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ]
+            },
+            "description": "Create a new prescription template with name, description, prescription text, and tags"
+          }
+        },
+        {
+          "name": "Get All Prescription Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates?isActive=true&tag=diabetes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates"
+              ],
+              "query": [
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "description": "Filter by active status"
+                },
+                {
+                  "key": "tag",
+                  "value": "diabetes",
+                  "description": "Filter by specific tag"
+                }
+              ]
+            },
+            "description": "Get all prescription templates for logged-in doctor with optional filters by tag and active status"
+          }
+        },
+        {
+          "name": "Get Prescription Template by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Get a specific prescription template by ID"
+          }
+        },
+        {
+          "name": "Update Prescription Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Template Name\",\n  \"description\": \"Updated description\",\n  \"prescriptionText\": \"Updated prescription text\",\n  \"tags\": [\"updated\", \"tags\"],\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ]
+            },
+            "description": "Update an existing prescription template (all fields are optional)"
+          }
+        },
+        {
+          "name": "Delete/Deactivate Prescription Template",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId?permanent=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId"
+              ],
+              "query": [
+                {
+                  "key": "permanent",
+                  "value": "false",
+                  "description": "If true, permanently delete; otherwise deactivate (soft delete)"
+                }
+              ]
+            },
+            "description": "Delete or deactivate a prescription template. Use permanent=true to delete permanently, otherwise it will be deactivated (isActive=false)"
+          }
+        },
+        {
+          "name": "Use Template for Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"patient-uuid-here\",\n  \"customizedText\": \"Customized prescription text based on template\",\n  \"appointmentId\": \"appointment-uuid-here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/:templateId/use",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                ":templateId",
+                "use"
+              ]
+            },
+            "description": "Use a prescription template to create a prescription for a patient. Can customize the text and link to an appointment. Sends email notification to patient."
+          }
+        },
+        {
+          "name": "Get Prescription Template Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/doctor/prescription-templates/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "prescription-templates",
+                "tags"
+              ]
+            },
+            "description": "Get all unique tags from doctor's prescription templates for filtering"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patient Endpoints",
+      "item": [
+        {
+          "name": "Search Doctors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/search-doctors?specialty=Cardiology&location=New York",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "search-doctors"
+              ],
+              "query": [
+                {
+                  "key": "specialty",
+                  "value": "Cardiology"
+                },
+                {
+                  "key": "location",
+                  "value": "New York"
+                }
+              ]
+            },
+            "description": "Search for doctors by specialty and location"
+          }
+        },
+        {
+          "name": "Get All Doctors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/all-doctors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "all-doctors"
+              ]
+            },
+            "description": "Fetch all available doctors"
+          }
+        },
+        {
+          "name": "Get Available Time Slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:doctorId/timeSlots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":doctorId",
+                "timeSlots"
+              ]
+            },
+            "description": "Get available time slots for a doctor"
+          }
+        },
+        {
+          "name": "Book Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": \"doctor-id-here\",\n  \"timeSlotId\": \"timeslot-id-here\",\n  \"appointmentType\": \"ONLINE\",\n  \"notes\": \"Need consultation for heart condition\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/book-appointment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "book-appointment"
+              ]
+            },
+            "description": "Book appointment with a doctor"
+          }
+        },
+        {
+          "name": "Book Direct Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": \"doctor-id-here\",\n  \"date\": \"2025-03-05\",\n  \"time\": \"10:00 AM\",\n  \"appointmentType\": \"OFFLINE\",\n  \"notes\": \"Direct appointment request\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/book-direct-appointment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "book-direct-appointment"
+              ]
+            },
+            "description": "Book appointment without time slot"
+          }
+        },
+        {
+          "name": "Get Upcoming Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/upcoming-appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "upcoming-appointments"
+              ]
+            },
+            "description": "Get patient's upcoming appointments"
+          }
+        },
+        {
+          "name": "Get Past Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/past-appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "past-appointments"
+              ]
+            },
+            "description": "Get patient's past appointments"
+          }
+        },
+        {
+          "name": "Get All Patient Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/all-appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "all-appointments"
+              ]
+            },
+            "description": "Get all appointments with details"
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/cancel-appointment/:appointmentId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "cancel-appointment",
+                ":appointmentId"
+              ]
+            },
+            "description": "Cancel an appointment"
+          }
+        },
+        {
+          "name": "View Prescriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/view-Prescriptions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "view-Prescriptions"
+              ]
+            },
+            "description": "Get all prescriptions for patient"
+          }
+        },
+        {
+          "name": "Get Prescription PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/prescription-pdf/:prescriptionId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "prescription-pdf",
+                ":prescriptionId"
+              ]
+            },
+            "description": "Download prescription as PDF"
+          }
+        },
+        {
+          "name": "Get Patient Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "notifications"
+              ]
+            },
+            "description": "Get patient notifications"
+          }
+        },
+        {
+          "name": "Mark Patient Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/notifications/:notificationId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "notifications",
+                ":notificationId"
+              ]
+            },
+            "description": "Mark patient notification as read"
+          }
+        },
+        {
+          "name": "Get City Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/city-rooms",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                "city-rooms"
+              ]
+            },
+            "description": "Get city-based chat rooms for patients"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat & Messaging",
+      "item": [
+        {
+          "name": "Get Room Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/room/:roomId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "room",
+                ":roomId"
+              ]
+            },
+            "description": "Get messages from a room"
+          }
+        },
+        {
+          "name": "Get Direct Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/dm/:roomId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "dm",
+                ":roomId"
+              ]
+            },
+            "description": "Get direct messages"
+          }
+        },
+        {
+          "name": "Get One-on-One Chat History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/one-on-one/:otherUserId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "one-on-one",
+                ":otherUserId"
+              ]
+            },
+            "description": "Get chat history with another user"
+          }
+        },
+        {
+          "name": "Get City Chat History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/city/:cityName",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "city",
+                ":cityName"
+              ]
+            },
+            "description": "Get city-based chat messages"
+          }
+        },
+        {
+          "name": "Get Agora Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelName\": \"appointment-123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat/get-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "get-token"
+              ]
+            },
+            "description": "Get Agora token for video call"
+          }
+        },
+        {
+          "name": "Get Doctor DM Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/doctor/conversations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "doctor",
+                "conversations"
+              ]
+            },
+            "description": "Get all doctor conversations"
+          }
+        },
+        {
+          "name": "Get Patient DM Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/patient/conversations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "patient",
+                "conversations"
+              ]
+            },
+            "description": "Get all patient conversations"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Chat",
+      "item": [
+        {
+          "name": "Process Symptoms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userMessage\": \"I have severe chest pain and difficulty breathing\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai-chat/process",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ai-chat",
+                "process"
+              ]
+            },
+            "description": "Process symptoms and get AI analysis"
+          }
+        },
+        {
+          "name": "Get AI Chat History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ai-chat/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ai-chat",
+                "history"
+              ]
+            },
+            "description": "Get AI chat history for user"
+          }
+        },
+        {
+          "name": "Get Specific AI Chat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ai-chat/:chatId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ai-chat",
+                ":chatId"
+              ]
+            },
+            "description": "Get specific AI chat details"
+          }
+        },
+        {
+          "name": "Clear AI Chat History",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ai-chat/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ai-chat",
+                "history"
+              ]
+            },
+            "description": "Clear all AI chat history for user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications"
+              ]
+            },
+            "description": "Get all user notifications"
+          }
+        },
+        {
+          "name": "Get Unread Notification Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/notifications/unread-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "Get count of unread notifications"
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/notifications/:notificationId/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                ":notificationId",
+                "read"
+              ]
+            },
+            "description": "Mark specific notification as read"
+          }
+        },
+        {
+          "name": "Mark All Notifications as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/mark-all-read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "mark-all-read"
+              ]
+            },
+            "description": "Mark all notifications as read"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Symptoms",
+      "item": [
+        {
+          "name": "Get User Symptoms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/symptom",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "symptom"
+              ]
+            },
+            "description": "Get all symptoms for authenticated user"
+          }
+        },
+        {
+          "name": "Add Symptom",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptomText\": \"Severe headache\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/symptom",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "symptom"
+              ]
+            },
+            "description": "Add new symptom for patient"
+          }
+        },
+        {
+          "name": "Delete Symptom",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/symptom/:symptomId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "symptom",
+                ":symptomId"
+              ]
+            },
+            "description": "Delete a symptom"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Upload Medical Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/report/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "report",
+                "upload"
+              ]
+            },
+            "description": "Upload medical report file"
+          }
+        },
+        {
+          "name": "Get All Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/report",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "report"
+              ]
+            },
+            "description": "Get all medical reports for patient"
+          }
+        },
+        {
+          "name": "Get Report Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/report/:reportId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "report",
+                ":reportId"
+              ]
+            },
+            "description": "Get details of a specific report"
+          }
+        },
+        {
+          "name": "Delete Report",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/report/:reportId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "report",
+                ":reportId"
+              ]
+            },
+            "description": "Delete a medical report"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Metrics",
+      "item": [
+        {
+          "name": "Create Health Metric - Weight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"WEIGHT\",\n  \"value\": 75.5,\n  \"unit\": \"kg\",\n  \"notes\": \"Morning weight measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create a new weight measurement for a patient. The system will auto-calculate BMI if both weight and height are available."
+          }
+        },
+        {
+          "name": "Create Health Metric - Height",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"HEIGHT\",\n  \"value\": 175,\n  \"unit\": \"cm\",\n  \"notes\": \"Height measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create a new height measurement. BMI will be auto-calculated if weight is also available."
+          }
+        },
+        {
+          "name": "Create Health Metric - Blood Pressure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"BLOOD_PRESSURE_SYSTOLIC\",\n  \"value\": 120,\n  \"unit\": \"mmHg\",\n  \"notes\": \"Blood pressure reading - resting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create blood pressure systolic reading"
+          }
+        },
+        {
+          "name": "Create Health Metric - Heart Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"HEART_RATE\",\n  \"value\": 72,\n  \"unit\": \"bpm\",\n  \"recordedAt\": \"2026-02-27T10:30:00Z\",\n  \"notes\": \"Resting heart rate\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create heart rate measurement with custom timestamp"
+          }
+        },
+        {
+          "name": "Create Health Metric - Blood Glucose",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"BLOOD_GLUCOSE_FASTING\",\n  \"value\": 95,\n  \"unit\": \"mg/dL\",\n  \"notes\": \"Fasting blood glucose - morning\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create fasting blood glucose measurement"
+          }
+        },
+        {
+          "name": "Create Health Metric - Temperature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"TEMPERATURE\",\n  \"value\": 36.8,\n  \"unit\": \"°C\",\n  \"notes\": \"Body temperature\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create body temperature reading"
+          }
+        },
+        {
+          "name": "Create Health Metric - Oxygen Saturation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metricType\": \"OXYGEN_SATURATION\",\n  \"value\": 98,\n  \"unit\": \"%\",\n  \"notes\": \"SpO2 measurement\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Create oxygen saturation (SpO2) measurement"
+          }
+        },
+        {
+          "name": "Get All Health Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of records to return"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Number of records to skip"
+                },
+                {
+                  "key": "metricType",
+                  "value": "WEIGHT",
+                  "disabled": true,
+                  "description": "Filter by specific metric type"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01",
+                  "disabled": true,
+                  "description": "Start date for filtering (ISO format)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-12-31",
+                  "disabled": true,
+                  "description": "End date for filtering (ISO format)"
+                },
+                {
+                  "key": "abnormalOnly",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Show only abnormal readings"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get all health metrics for a patient with optional filters for metric type, date range, and abnormal values"
+          }
+        },
+        {
+          "name": "Get Health Metrics - Filtered by Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?metricType=WEIGHT&metricType=HEIGHT&metricType=BMI",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "metricType",
+                  "value": "WEIGHT"
+                },
+                {
+                  "key": "metricType",
+                  "value": "HEIGHT"
+                },
+                {
+                  "key": "metricType",
+                  "value": "BMI"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get metrics filtered by multiple types (Weight, Height, BMI)"
+          }
+        },
+        {
+          "name": "Get Health Metrics - Abnormal Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics?abnormalOnly=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics"
+              ],
+              "query": [
+                {
+                  "key": "abnormalOnly",
+                  "value": "true"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get only abnormal health metric readings"
+          }
+        },
+        {
+          "name": "Get Metric Trends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/trends?metricTypes=WEIGHT&metricTypes=HEART_RATE&period=30d",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "trends"
+              ],
+              "query": [
+                {
+                  "key": "metricTypes",
+                  "value": "WEIGHT",
+                  "description": "Metric types to analyze (can specify multiple)"
+                },
+                {
+                  "key": "metricTypes",
+                  "value": "HEART_RATE"
+                },
+                {
+                  "key": "period",
+                  "value": "30d",
+                  "description": "Time period: 7d, 30d, 90d, 180d, 1y"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get trend analysis for specific metrics including average, min, max, and percentage change over time period"
+          }
+        },
+        {
+          "name": "Get Latest Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/latest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "latest"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get the latest reading for each metric type for a patient"
+          }
+        },
+        {
+          "name": "Get Abnormal Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/alerts?period=7d",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "7d",
+                  "description": "Time period: 7d, 30d, 90d"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get abnormal metrics requiring attention (only accessible by doctors and admins)"
+          }
+        },
+        {
+          "name": "Get Health Metric by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get a specific health metric by its ID"
+          }
+        },
+        {
+          "name": "Update Health Metric",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 76.0,\n  \"notes\": \"Updated weight measurement (evening)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Update a health metric. Only the user who created it or an admin can update it."
+          }
+        },
+        {
+          "name": "Delete Health Metric",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/patient/:patientId/health-metrics/:metricId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "patient",
+                ":patientId",
+                "health-metrics",
+                ":metricId"
+              ],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                },
+                {
+                  "key": "metricId",
+                  "value": "METRIC_ID_HERE"
+                }
+              ]
+            },
+            "description": "Delete a health metric. Only the user who created it or an admin can delete it."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users"
+              ]
+            },
+            "description": "List all users (admin only)"
+          }
+        },
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/dashboard-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "dashboard-stats"
+              ]
+            },
+            "description": "Get admin dashboard statistics"
+          }
+        },
+        {
+          "name": "Verify Doctor",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/verify-doctor/:doctorUserId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "verify-doctor",
+                ":doctorUserId"
+              ]
+            },
+            "description": "Verify a doctor account"
+          }
+        },
+        {
+          "name": "Soft Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/:userId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users",
+                ":userId"
+              ]
+            },
+            "description": "Soft delete a user account"
+          }
+        },
+        {
+          "name": "Change User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"DOCTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/:userId/role",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users",
+                ":userId",
+                "role"
+              ]
+            },
+            "description": "Change user role (PATIENT, DOCTOR, ADMIN)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Analytics Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analytics"
+              ]
+            },
+            "description": "Get application analytics data"
+          }
+        },
+        {
+          "name": "Get Doctor Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/doctor/:doctorId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analytics",
+                "doctor",
+                ":doctorId"
+              ]
+            },
+            "description": "Get analytics for specific doctor"
+          }
+        }
+      ]
+    }
+  ]
+}

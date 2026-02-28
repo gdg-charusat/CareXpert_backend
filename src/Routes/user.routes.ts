@@ -5,6 +5,7 @@ import {
   logout,
   signup,
   adminSignup,
+  refreshAccessToken,
   updateDoctorProfile,
   updatePatientProfile,
   userProfile,
@@ -22,6 +23,7 @@ import {
   resetPassword,
   refreshAccessToken,
 } from "../controllers/user.controller";
+
 import { isAuthenticated } from "../middlewares/auth.middleware";
 import { isDoctor, isPatient } from "../utils/helper";
 import { upload } from "../middlewares/upload";
@@ -51,19 +53,33 @@ router.post("/resend-verification", emailResendLimiter, resendVerificationEmail 
 router.post("/forgot-password", passwordResetRequestLimiter, forgotPassword as any);
 router.post("/reset-password", passwordResetLimiter, resetPassword as any);
 
-router.get("/patient/profile/:id", isAuthenticated, userProfile);
-router.get("/doctor/profile/:id", isAuthenticated, doctorProfile);
+router.get(
+  "/patient/profile/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  userProfile as any
+);
+
+router.get(
+  "/doctor/profile/:id",
+  isAuthenticated,
+  globalRateLimiter,
+  doctorProfile as any
+);
 
 router.put(
   "/update-patient",
   isAuthenticated,
+  globalRateLimiter,
   isPatient,
   upload.single("profilePicture"),
   updatePatientProfile
 );
+
 router.put(
   "/update-doctor",
   isAuthenticated,
+  globalRateLimiter,
   isDoctor,
   upload.single("profilePicture"),
   updateDoctorProfile
@@ -72,18 +88,57 @@ router.put(
 router.get(
   "/authenticated-profile",
   isAuthenticated,
+  globalRateLimiter,
   getAuthenticatedUserProfile
 );
 
-// Notification routes
-router.get("/notifications", isAuthenticated, getNotifications);
-router.get("/notifications/unread-count", isAuthenticated, getUnreadNotificationCount);
-router.put("/notifications/:notificationId/read", isAuthenticated, markNotificationAsRead);
-router.put("/notifications/mark-all-read", isAuthenticated, markAllNotificationsAsRead);
+router.get(
+  "/notifications",
+  isAuthenticated,
+  globalRateLimiter,
+  getNotifications
+);
 
-// Community routes
-router.get("/communities/:roomId/members", isAuthenticated, getCommunityMembers);
-router.post("/communities/:roomId/join", isAuthenticated, joinCommunity);
-router.post("/communities/:roomId/leave", isAuthenticated, leaveCommunity);
+router.get(
+  "/notifications/unread-count",
+  isAuthenticated,
+  globalRateLimiter,
+  getUnreadNotificationCount
+);
+
+router.put(
+  "/notifications/:notificationId/read",
+  isAuthenticated,
+  globalRateLimiter,
+  markNotificationAsRead
+);
+
+router.put(
+  "/notifications/mark-all-read",
+  isAuthenticated,
+  globalRateLimiter,
+  markAllNotificationsAsRead
+);
+
+router.get(
+  "/communities/:roomId/members",
+  isAuthenticated,
+  globalRateLimiter,
+  getCommunityMembers
+);
+
+router.post(
+  "/communities/:roomId/join",
+  isAuthenticated,
+  globalRateLimiter,
+  joinCommunity
+);
+
+router.post(
+  "/communities/:roomId/leave",
+  isAuthenticated,
+  globalRateLimiter,
+  leaveCommunity
+);
 
 export default router;

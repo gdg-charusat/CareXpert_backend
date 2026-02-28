@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -9,10 +8,9 @@ cloudinary.config({
 
 export async function uploadToCloudinary(base64Image: string): Promise<string> {
   try {
-    // Remove data URL prefix if present
+    
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
 
-    // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(
       `data:image/jpeg;base64,${base64Data}`,
       {

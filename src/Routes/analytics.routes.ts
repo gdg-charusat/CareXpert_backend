@@ -1,0 +1,20 @@
+import express from "express";
+import { isAuthenticated } from "../middlewares/auth.middleware";
+import { globalRateLimiter } from "../middlewares/rateLimiter.middleware";
+import {
+  getHealthSummary,
+  getDoctorVisitFrequency,
+  getReportTrends,
+  getSymptomPatterns,
+} from "../controllers/analytics.controller";
+
+const router = express.Router();
+
+router.use(isAuthenticated, globalRateLimiter);
+
+router.get("/summary", getHealthSummary as any);
+router.get("/doctors-visited", getDoctorVisitFrequency as any);
+router.get("/reports", getReportTrends as any);
+router.get("/symptoms", getSymptomPatterns as any);
+
+export default router;
